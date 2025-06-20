@@ -1,0 +1,115 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Repository: Data Access Patterns
+
+## Purpose
+This rule guides repository implementation following domain-driven design principles.
+Focus on clean data access patterns with proper exception handling and clear separation between simple lookups and complex queries.
+
+## Core Design Principles
+
+### Key Principles
+- **Keep repositories simple**: Basic CRUD and simple queries only
+- **Delegate complexity**: Use query handlers for complex scenarios
+
+### Naming and Structure
+- **Convention**: `{DomainModel}Repository` (e.g., `OrderRepository`, `ChallengeRepository`)
+- **Package**: Same package as domain model
+- **Extends**: `JpaRepository<Entity, IdType>` for JPA-based repositories
+
+### Method Design Principles
+- **Prefer `getOrThrow`**: For required entity lookups
+- **Use `Optional`**: Only when absence is valid business case
+- **Delegate complex queries**: Use query handlers for non-standard queries (see `@query-handlers.mdc`)
+- **Custom exceptions**: Throw domain-specific exceptions (see `@exceptions.mdc`)
+
+## Core Patterns
+
+### Standard Repository Structure
+```java
+@Repository
+public interface ChallengeRepository extends JpaRepository<Challenge, ChallengeId> {
+
+    // Required entity lookup - throws exception if not found
+    default Challenge getOrThrow(ChallengeId id) {
+        return findById(id).orElseThrow(() -> new NoSuchChallengeException(id));
+    }
+
+    // Optional lookup - when absence is valid
+    Optional<Challenge> findByName(ChallengeName name);
+
+    // Simple queries - return domain objects
+    List<Challenge> findByCreatedBy(UserId userId);
+}
+```
+
+### getOrThrow vs Optional Usage
+
+**Use `getOrThrow` when:**
+```java
+// Entity must exist for business operation to proceed
+Challenge challenge = challengeRepository.getOrThrow(challengeId);
+challenge.start(userId);
+```
+
+**Use `Optional` when:**
+```java
+// Absence is valid business scenario
+Optional<StartedChallenge> existing = startedChallengeRepository
+    .findByUserIdAndChallengeId(userId, challengeId);
+
+if (existing.isPresent()) {
+    throw new ChallengeAlreadyStartedException(challengeId);
+}
+```
+
+### Exception Handling
+```java
+// Custom exception in same package as domain model
+default Challenge getOrThrow(ChallengeId id) {
+    return findById(id).orElseThrow(() -> new NoSuchChallengeException(id));
+}
+```
+
+### Complex Query Delegation
+```java
+// Simple repository - delegate complex queries
+@Repository
+public interface ChallengeRepository extends JpaRepository<Challenge, ChallengeId> {
+
+    default Challenge getOrThrow(ChallengeId id) {
+        return findById(id).orElseThrow(() -> new NoSuchChallengeException(id));
+    }
+
+    // Simple domain queries only
+    List<Challenge> findByStatus(ChallengeStatus status);
+}
+
+// Complex queries go to query handlers
+// See @query-handler.mdc for:
+// - Different return formats (DTOs, projections)
+// - Complex parameters or joins
+// - Cross-aggregate queries
+```
+
+### ❌ Anti-Patterns
+```java
+// DON'T: Generic exceptions
+default Challenge getOrThrow(ChallengeId id) {
+    return findById(id).orElseThrow(() ->
+        new RuntimeException("Challenge not found")); // ❌
+}
+
+// DON'T: Complex queries in repository
+@Query("SELECT new com.example.dto.ChallengeStatsDto(c.name, COUNT(sc.id), AVG(sc.progress)) " +
+       "FROM Challenge c LEFT JOIN StartedChallenge sc ON c.id = sc.challengeId " +
+       "WHERE c.createdBy = :userId GROUP BY c.id")
+List<ChallengeStatsDto> getComplexStats(@Param("userId") UserId userId); // ❌
+
+// DON'T: Optional for required entities
+Optional<Challenge> findById(ChallengeId id); // ❌ Use getOrThrow instead
+```
+

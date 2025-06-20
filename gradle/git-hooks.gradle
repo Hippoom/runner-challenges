@@ -1,0 +1,23 @@
+task installGitHooks(type: Copy) {
+    from new File(rootProject.rootDir, '.githooks')
+    into {
+        new File(rootProject.rootDir, '.git/hooks')
+    }
+    fileMode 0755
+}
+
+task setupGitHooks {
+    doLast {
+        exec {
+            workingDir rootProject.rootDir
+            commandLine 'git', 'config', 'core.hooksPath', '.githooks'
+        }
+    }
+}
+
+// Make sure git hooks are installed before the build
+build.dependsOn installGitHooks
+build.dependsOn setupGitHooks
+
+// Make setupGitHooks run after installGitHooks
+setupGitHooks.mustRunAfter installGitHooks

@@ -1,0 +1,122 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+
+# Command Handler: CQRS Implementation Patterns
+
+## Purpose
+
+This rule guides the implementation of command handlers following CQRS principles.
+Focus on clean architecture patterns with single responsibility, proper dependency injection,
+and clear separation between command objects and business logic implementation.
+
+## Core Design Principles
+
+### 1. Command Object Design
+
+see @commands.mdc
+
+### 2. Handler Architecture
+
+- **Descriptive Naming**: Use {commandName}Handler (e.g., `StartChallengeHandler`, `CompleteChallengeHandler`)
+- **Single Responsibility**: Prefer One handler per command type
+- **Dependency Injection**: Prefer constructor injection for all dependencies
+- **Transaction Boundaries**: Handlers define transaction scope
+- **Domain Delegation**: Delegate business logic to domain objects, specifications and services
+
+### 3. Clean Separation
+
+- **Commands**: Data transport only
+- **Handlers**: Orchestration and transaction management
+- **Domain Objects**: Business logic implementation
+- **Events**: Data transport only
+- **Ports**: Abstractions
+    - **Domain Services**: Business logic implementation or external dependencies access
+    - **Specifications**: Business logic implementation or external dependencies access
+    - **Repositories**: Data access abstraction
+    - **Event Publishers**: Event emitting abstraction
+
+## Core Patterns
+
+### Basic Handler Structure
+
+```java
+package com.example.application;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+@RequiredArgsConstructor
+@Transactional
+@Component
+public class StartChallengeCommandHandler {
+
+    private final ChallengeRepository challengeRepository;
+    private final StartedChallengeRepository startedChallengeRepository;
+    private final ChallengeAvailabilityService challengeAvailabilityService;
+
+    public StartedChallenge handle(StartChallenge command) {
+        // Implementation here
+        return null;
+    }
+}
+```
+
+### Error Handling
+see @exceptions.mdc
+
+```java
+public StartedChallenge handle(StartChallenge command) {
+    // Use getOrThrow for required entities
+    Challenge challenge = challengeRepository.getOrThrow(command.getChallengeNumber());
+
+    // Use Optional only when business logic requires it
+    Optional<StartedChallenge> existing = startedChallengeRepository
+            .findByUserIdAndChallengeNumber(command.getUserId(), command.getChallengeNumber());
+
+    if (existing.isPresent()) {
+        throw new ChallengeAlreadyStartedException(command.getChallengeNumber(), command.getUserId());
+    }
+
+    // Continue with business logic
+}
+```
+
+### Repository Usage
+see @repositories.mdc
+
+```java
+// Prefer getOrThrow for required entities
+Challenge challenge = challengeRepository.getOrThrow(challengeNumber);
+
+// Use Optional only when absence is valid business case
+Optional<StartedChallenge> maybeStarted = startedChallengeRepository
+        .findByUserId(userId);
+
+// Avoid findById().orElseThrow() - use getOrThrow instead
+```
+
+### Specification Usage
+see @specifications.mdc
+
+```java
+public StartedChallenge handle(StartChallenge command) {
+    // 1. Load required entities early
+    Challenge challenge = challengeRepository.getOrThrow(command.getChallengeNumber());
+    User user = userRepository.getOrThrow(command.getUserId());
+
+    // 2. Validate preconditions early
+    startChallengeSpecification.validate(challenge, user);
+
+    // 3. Execute business logic
+    StartedChallenge startedChallenge = startedChallengeFactory.create(challenge, user, command.getWhen());
+
+    // 4. Persist changes
+    return startedChallengeRepository.save(startedChallenge);
+}
+```
+
+

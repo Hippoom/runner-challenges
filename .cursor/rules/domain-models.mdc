@@ -1,0 +1,331 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+
+# Domain Model: DDD Implementation Patterns
+
+## Purpose
+
+This rule guides domain model implementation following domain-driven design principles.
+Focus on rich domain objects with proper encapsulation, type safety through value objects, and clear separation between
+entities, value objects, and domain services.
+
+## Core Design Principles
+
+### 1. Entity Design
+
+- **Identity**: Each entity has a unique identity using dedicated ID value objects
+- **Encapsulation**: Rich domain objects with behavior, not anemic data containers
+- **Immutability**: Prefer immutable value objects and careful state management in entities
+- **Type Safety**: Use value objects instead of primitives to prevent primitive obsession
+
+### 2. Value Object Design
+
+- **Immutable**: Value objects should be immutable once created
+- **Equality by Value**: Two value objects are equal if their values are equal
+- **Self-Validating**: Value objects validate their own invariants
+- **Meaningful Names**: Use domain-specific names instead of generic types
+
+### 3. Aggregate Design
+
+- **Consistency Boundaries**: Aggregates define transactional consistency boundaries
+- **Root Entity**: Only access aggregate members through the aggregate root
+- **Small Aggregates**: Keep aggregates small and focused
+
+### 4. JPA Integration
+
+- **JPA Integration**: Use converters and proper annotations for persistence
+- **Repositories**: see @repositories.mdc
+
+### 5. Test Data Builders
+
+- see @test-data-builders.mdc
+
+## Core Patterns
+
+### Basic Entity Structure
+
+```java
+package com.example.domain.model.order;
+
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
+
+@Getter
+@EqualsAndHashCode(of = "id")
+@ToString(of = "id")
+public class Order {
+    private final OrderId id;
+    private OrderStatus status;
+    private OrderAmount amount;
+    private UserId customerId;
+    private Instant createdAt;
+
+    public Order(OrderId id, UserId customerId, OrderAmount amount) {
+        this.id = id;
+        this.customerId = customerId;
+        this.amount = amount;
+        this.status = OrderStatus.PENDING;
+        this.createdAt = Instant.now();
+    }
+
+    public void confirm() {
+        if (status != OrderStatus.PENDING) {
+            throw new CannotConfirmOrderException(id, status);
+        }
+        this.status = OrderStatus.CONFIRMED;
+    }
+
+    public boolean isConfirmed() {
+        return status == OrderStatus.CONFIRMED;
+    }
+}
+```
+
+### Identity Value Objects
+
+```java
+package com.example.domain.model.order;
+
+import lombok.Value;
+
+@Value
+public class OrderId {
+    String value;
+
+    public static OrderId of(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            throw new IllegalArgumentException("OrderId cannot be null or empty");
+        }
+        return new OrderId(value);
+    }
+
+    public static OrderId generate() {
+        return new OrderId(UUID.randomUUID().toString());
+    }
+}
+```
+
+### Complex Value Objects
+
+```java
+
+@Value
+public class OrderAmount {
+    BigDecimal value;
+    Currency currency;
+
+    public OrderAmount(BigDecimal value, Currency currency) {
+        if (value == null || value.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Amount cannot be null or negative");
+        }
+        if (currency == null) {
+            throw new IllegalArgumentException("Currency cannot be null");
+        }
+        this.value = value;
+        this.currency = currency;
+    }
+
+    public static OrderAmount of(BigDecimal value, Currency currency) {
+        return new OrderAmount(value, currency);
+    }
+
+    public static OrderAmount usd(BigDecimal value) {
+        return new OrderAmount(value, Currency.getInstance("USD"));
+    }
+
+    public OrderAmount add(OrderAmount other) {
+        if (!this.currency.equals(other.currency)) {
+            throw new CurrencyMismatchException(this.currency, other.currency);
+        }
+        return new OrderAmount(this.value.add(other.value), this.currency);
+    }
+
+    public boolean isGreaterThan(OrderAmount other) {
+        if (!this.currency.equals(other.currency)) {
+            throw new CurrencyMismatchException(this.currency, other.currency);
+        }
+        return this.value.compareTo(other.value) > 0;
+    }
+}
+```
+
+### Simple Value Objects
+
+```java
+
+@Value
+public class ChallengeName {
+    String value;
+
+    public ChallengeName(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            throw new IllegalArgumentException("Challenge name cannot be null or empty");
+        }
+        if (value.length() > 100) {
+            throw new IllegalArgumentException("Challenge name cannot exceed 100 characters");
+        }
+        this.value = value.trim();
+    }
+
+    public static ChallengeName of(String value) {
+        return new ChallengeName(value);
+    }
+}
+```
+
+### Status Enums
+
+```java
+public enum OrderStatus {
+    PENDING("Pending"),
+    CONFIRMED("Confirmed"),
+    SHIPPED("Shipped"),
+    DELIVERED("Delivered"),
+    CANCELLED("Cancelled");
+
+    private final String displayName;
+
+    OrderStatus(String displayName) {
+        this.displayName = displayName;
+    }
+
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    public boolean canTransitionTo(OrderStatus newStatus) {
+        return switch (this) {
+            case PENDING -> newStatus == CONFIRMED || newStatus == CANCELLED;
+            case CONFIRMED -> newStatus == SHIPPED || newStatus == CANCELLED;
+            case SHIPPED -> newStatus == DELIVERED;
+            case DELIVERED, CANCELLED -> false;
+        };
+    }
+}
+```
+
+### Entity with JPA Annotations
+
+```java
+
+@Entity
+@Table(name = "orders")
+@Getter
+@EqualsAndHashCode(of = "id")
+@ToString(of = "id")
+@NoArgsConstructor(access = AccessLevel.PROTECTED) // For JPA
+public class Order {
+    @Id
+    @Convert(converter = OrderIdConverter.class)
+    private OrderId id;
+
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "value", column = @Column(name = "amount")),
+            @AttributeOverride(name = "currency", column = @Column(name = "currency"))
+    })
+    private OrderAmount amount;
+
+    @Enumerated(EnumType.STRING)
+    private OrderStatus status;
+
+    @Convert(converter = UserIdConverter.class)
+    @Column(name = "customer_id")
+    private UserId customerId;
+
+    @Column(name = "created_at")
+    private Instant createdAt;
+
+    // Domain constructor
+    public Order(OrderId id, UserId customerId, OrderAmount amount) {
+        this.id = id;
+        this.customerId = customerId;
+        this.amount = amount;
+        this.status = OrderStatus.PENDING;
+        this.createdAt = Instant.now();
+    }
+
+    // Domain behavior methods...
+}
+```
+
+### JPA Converters for Value Objects
+
+```java
+
+@Converter(autoApply = true)
+public class OrderIdConverter implements AttributeConverter<OrderId, String> {
+
+    @Override
+    public String convertToDatabaseColumn(OrderId attribute) {
+        return attribute == null ? null : attribute.getValue();
+    }
+
+    @Override
+    public OrderId convertToEntityAttribute(String dbData) {
+        return dbData == null ? null : OrderId.of(dbData);
+    }
+}
+```
+
+### ❌ Anti-Patterns
+
+```java
+// DON'T: Primitive obsession
+@Entity
+public class Order {
+    private String id; // ❌ Should be OrderId
+    private double amount; // ❌ Should be OrderAmount
+    private String customerId; // ❌ Should be UserId
+    private String status; // ❌ Should be OrderStatus enum
+
+    // ❌ Public setters exposing internal state
+    public void setStatus(String status) {
+        this.status = status;
+    }
+}
+
+// DON'T: Anemic domain model
+@Entity
+public class Order {
+    private OrderId id;
+    private OrderAmount amount;
+    private OrderStatus status;
+
+    // ❌ No domain behavior, just getters/setters
+    public OrderStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(OrderStatus status) {
+        this.status = status;
+    }
+}
+
+// DON'T: Mutable value objects
+@Data // ❌ Creates setters for value object
+public class OrderAmount {
+    private BigDecimal value;
+    private Currency currency;
+}
+
+// DON'T: No validation in value objects
+@Value
+public class ChallengeName {
+    String value; // ❌ No validation, accepts null/empty values
+}
+
+// DON'T: Generic exceptions
+public class Order {
+    public void confirm() {
+        if (status != OrderStatus.PENDING) {
+            throw new RuntimeException("Cannot confirm order"); // ❌ Generic exception
+        }
+        this.status = OrderStatus.CONFIRMED;
+    }
+}
+```

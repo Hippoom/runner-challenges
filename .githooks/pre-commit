@@ -1,0 +1,16 @@
+#!/bin/sh
+
+echo "Running clean build before commit..."
+./gradlew clean build
+
+# Store the exit code of the build
+RESULT=$?
+
+# If the build failed, prevent the commit
+if [ $RESULT -ne 0 ]; then
+    echo "❌ Build failed! Commit aborted."
+    exit 1
+fi
+
+echo "✅ Build successful! Proceeding with commit..."
+exit 0 

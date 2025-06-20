@@ -1,0 +1,77 @@
+buildscript {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+        maven { url 'https://jitpack.io' }
+    }
+    dependencies {
+        classpath 'com.github.passsy:gradle-gitVersioner-plugin:0.5.0'
+    }
+}
+
+plugins {
+    id 'org.springframework.boot' version '2.7.18'
+    id 'io.spring.dependency-management' version '1.0.11.RELEASE'
+    id 'java'
+    id 'com.gorylenko.gradle-git-properties' version '2.5.0'
+}
+
+apply from: 'gradle/docker-compose.gradle'
+apply from: 'gradle/git-hooks.gradle'
+apply from: 'gradle/checkstyle.gradle'
+apply from: 'gradle/commit-test.gradle'
+apply plugin: 'com.pascalwelsch.gitversioner'
+
+gitVersioner {
+    baseBranch 'main'
+    yearFactor 1000
+    addSnapshot true
+    addLocalChangesDetails true
+}
+
+version = gitVersioner.versionName
+sourceCompatibility = '1.8'
+
+ext {
+    junitVersion = '5.8.2'
+    junitPlatformVersion = '1.8.2'
+    awaitilityVersion = '4.2.0'
+    cucumberVersion = '7.14.0'
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://jitpack.io' }
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+
+    implementation "org.flywaydb:flyway-core:7.15.0"
+    implementation "org.postgresql:postgresql:42.7.2"
+
+
+    // Lombok
+    compileOnly 'org.projectlombok:lombok:1.18.30'
+    annotationProcessor 'org.projectlombok:lombok:1.18.30'
+
+    // Test Data Builder
+    testImplementation 'com.github.hippoom:test-data-builder:0.5.0'
+
+    // Spring Boot Test (with JUnit 5 support)
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+
+    // JUnit 5 (Spring Boot 2.7.18 provides JUnit Platform 1.8.2 natively)
+    testImplementation "org.junit.jupiter:junit-jupiter:${junitVersion}"
+    testImplementation "org.junit.platform:junit-platform-suite:${junitPlatformVersion}"
+    testImplementation "org.junit.platform:junit-platform-suite-api:${junitPlatformVersion}"
+    testImplementation "org.awaitility:awaitility:${awaitilityVersion}"
+
+    // Cucumber dependencies (JUnit 5 Platform Engine)
+    testImplementation "io.cucumber:cucumber-java:${cucumberVersion}"
+    testImplementation "io.cucumber:cucumber-junit-platform-engine:${cucumberVersion}"
+    testImplementation "io.cucumber:cucumber-spring:${cucumberVersion}"
+}
+

@@ -1,0 +1,27 @@
+services:
+  local-db:
+    image: postgres:15.12
+    container_name: backend-scaffold-local-db
+    environment:
+      POSTGRES_DB: backend_scaffold
+      POSTGRES_USER: local_user
+      POSTGRES_PASSWORD: local_password
+    ports:
+      - "5432:5432"  # Map container's 5432 to host's 5432 for local development
+    networks:
+      - local-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U local_user -d backend_scaffold"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - local-db-data:/var/lib/postgresql/data  # Persist data for local development
+
+networks:
+  local-network:
+    name: backend-scaffold-local-network
+
+volumes:
+  local-db-data:
+    name: backend-scaffold-local-db-data 
