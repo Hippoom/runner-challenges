@@ -1,4 +1,4 @@
-package x.y.z.steps;
+package com.github.hippoom.runner.challenges.steps;
 
 import io.cucumber.spring.CucumberContextConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;

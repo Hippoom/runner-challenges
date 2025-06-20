@@ -1,4 +1,4 @@
-package x.y.z.steps;
+package com.github.hippoom.runner.challenges.steps;
 
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;

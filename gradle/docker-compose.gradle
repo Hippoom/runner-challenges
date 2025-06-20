@@ -2,16 +2,16 @@
 ext.infraEnvironments = [
     test: [
         composeFile: 'docker-compose.test.yml',
-        containerName: 'backend-scaffold-test-db',
+        containerName: 'runner-challenges-test-db',
         dbUser: 'test_user',
-        dbName: 'backend_scaffold_test',
+        dbName: 'runner_challenges_test',
         cleanVolumes: true
     ],
     local: [
         composeFile: 'docker-compose.local.yml',
-        containerName: 'backend-scaffold-local-db',
+        containerName: 'runner-challenges-local-db',
         dbUser: 'local_user',
-        dbName: 'backend_scaffold',
+        dbName: 'runner_challenges',
         cleanVolumes: false
     ]
 ]

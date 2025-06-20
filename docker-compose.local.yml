@@ -1,9 +1,9 @@
 services:
   local-db:
     image: postgres:15.12
-    container_name: backend-scaffold-local-db
+    container_name: runner-challenges-local-db
     environment:
-      POSTGRES_DB: backend_scaffold
+      POSTGRES_DB: runner_challenges
       POSTGRES_USER: local_user
       POSTGRES_PASSWORD: local_password
     ports:
@@ -11,7 +11,7 @@ services:
     networks:
       - local-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U local_user -d backend_scaffold"]
+      test: ["CMD-SHELL", "pg_isready -U local_user -d runner_challenges"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -20,8 +20,8 @@ services:
 
 networks:
   local-network:
-    name: backend-scaffold-local-network
+    name: runner-challenges-local-network
 
 volumes:
   local-db-data:
-    name: backend-scaffold-local-db-data 
+    name: runner-challenges-local-db-data
