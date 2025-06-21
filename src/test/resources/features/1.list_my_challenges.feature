@@ -1,4 +1,3 @@
-@to-be-implemented
 Feature: List My Challenges
   As a runner
   I want to see a list of my challenges

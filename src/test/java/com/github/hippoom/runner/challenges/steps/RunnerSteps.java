@@ -23,17 +23,32 @@ public class RunnerSteps {
     @Autowired
     private TestRestTemplate restTemplate;
 
-    private ResponseEntity<String> healthResponse;
+    private ResponseEntity<String> challengesResponse;
 
-    @When("I request the health endpoint")
-    public void iRequestTheHealthEndpoint() {
-        String healthUrl = "http://localhost:" + managementPort + "/actuator/health";
-        healthResponse = restTemplate.getForEntity(healthUrl, String.class);
+    @When("I request to list my challenges")
+    public void iRequestToListMyChallenges() {
+        String challengesUrl = "http://localhost:" + mainPort + "/api/my/challenges";
+        challengesResponse = restTemplate.getForEntity(challengesUrl, String.class);
     }
 
-    @Then("I should receive a status of \"UP\"")
-    public void iShouldReceiveAStatusOfUP() {
-        assertEquals(HttpStatus.OK, healthResponse.getStatusCode(), "Health endpoint should return HTTP 200");
-        assertTrue(healthResponse.getBody().contains("\"status\":\"UP\""), "Response should contain status UP");
+        @Then("I should see all challenges sorted by number")
+    public void iShouldSeeAllChallengesSortedByNumber() {
+        assertEquals(HttpStatus.OK, challengesResponse.getStatusCode(), 
+                "Challenges endpoint should return HTTP 200");
+        
+        String responseBody = challengesResponse.getBody();
+        assertTrue(responseBody.contains("\"_embedded\""), "Response should contain _embedded");
+        assertTrue(responseBody.contains("\"challenges\""), 
+                "Response should contain challenges array per OpenAPI spec");
+        
+        // Check that challenges are in ascending order
+        int pos1 = responseBody.indexOf("\"number\":1");
+        int pos2 = responseBody.indexOf("\"number\":2");
+        int pos3 = responseBody.indexOf("\"number\":3");
+        int pos4 = responseBody.indexOf("\"number\":4");
+        int pos5 = responseBody.indexOf("\"number\":5");
+        
+        assertTrue(pos1 > 0 && pos2 > pos1 && pos3 > pos2 && pos4 > pos3 && pos5 > pos4, 
+                   "Challenges should be sorted in ascending order by number");
     }
 }
