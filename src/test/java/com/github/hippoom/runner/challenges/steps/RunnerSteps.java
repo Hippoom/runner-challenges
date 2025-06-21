@@ -24,6 +24,7 @@ public class RunnerSteps {
     private TestRestTemplate restTemplate;
 
     private ResponseEntity<String> challengesResponse;
+    private ResponseEntity<String> startChallengeResponse;
 
     @When("I request to list my challenges")
     public void iRequestToListMyChallenges() {
@@ -50,5 +51,21 @@ public class RunnerSteps {
         
         assertTrue(pos1 > 0 && pos2 > pos1 && pos3 > pos2 && pos4 > pos3 && pos5 > pos4, 
                    "Challenges should be sorted in ascending order by number");
+    }
+
+    @When("I select the challenge {string} to start")
+    public void iSelectTheChallengeToStart(String challengeNumber) {
+        String startChallengeUrl = "http://localhost:" + mainPort + "/api/my/challenges/" + challengeNumber + "/start";
+        startChallengeResponse = restTemplate.postForEntity(startChallengeUrl, null, String.class);
+    }
+
+    @Then("the challenge should be marked as started")
+    public void theChallengeShouldBeMarkedAsStarted() {
+        assertEquals(HttpStatus.OK, startChallengeResponse.getStatusCode(), 
+                "Start challenge endpoint should return HTTP 200");
+        
+        String responseBody = startChallengeResponse.getBody();
+        assertTrue(responseBody.contains("\"is_started\":true"), 
+                "Response should show challenge is started");
     }
 }
