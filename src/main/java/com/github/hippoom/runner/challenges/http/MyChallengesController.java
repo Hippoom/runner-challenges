@@ -34,7 +34,11 @@ public class MyChallengesController {
         // Get all challenges sorted by number
         List<Challenge> challenges = challengeRepository.findAll();
 
-        return assembler.toCollectionModel(challenges);
+        // Use optimized toModels method to avoid N+1 queries
+        List<MyChallengeRepresentation> challengeRepresentations = 
+                assembler.toModels(challenges, userId.getValue());
+        
+        return CollectionModel.of(challengeRepresentations);
     }
 
     @PostMapping("/{number}/start")

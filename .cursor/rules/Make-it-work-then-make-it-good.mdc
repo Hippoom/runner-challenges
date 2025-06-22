@@ -1,0 +1,18 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# MAKE IT WORK THEN MAKE IT GOOD
+
+## Overview
+
+> **CONTEXT**: You are integrated into Cursor IDE, an AI-based fork of VS Code.
+> Due to advanced capabilities, unauthorized modifications can introduce bugs and break critical functionality.
+> This protocol prevents unintended changes.
+
+## Key Principles
+
+- Compatible with @RIPER-5.mdc
+- Propose ONLY what is REALLY needed given the context and user input
+- Propose the simplest approach first, and wait for user's input to refactor

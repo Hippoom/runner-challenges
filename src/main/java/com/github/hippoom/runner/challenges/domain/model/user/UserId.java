@@ -1,10 +1,15 @@
 package com.github.hippoom.runner.challenges.domain.model.user;
 
-import lombok.Value;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import javax.persistence.Embeddable;
+import java.io.Serializable;
 import java.util.UUID;
 
-@Value
-public class UserId {
+@Data
+@NoArgsConstructor
+@Embeddable
+public class UserId implements Serializable {
     private String value;
 
     public UserId(String value) {

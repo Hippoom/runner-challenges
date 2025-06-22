@@ -1,8 +1,13 @@
 package com.github.hippoom.runner.challenges.domain.model.challenge;
 
-import lombok.Value;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-@Value
+import javax.persistence.Embeddable;
+
+@Data
+@NoArgsConstructor
+@Embeddable
 public class ChallengeNumber implements Comparable<ChallengeNumber> {
     private Integer value;
 

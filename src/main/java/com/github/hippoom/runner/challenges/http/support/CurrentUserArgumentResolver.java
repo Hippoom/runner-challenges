@@ -1,6 +1,7 @@
 package com.github.hippoom.runner.challenges.http.support;
 
 import com.github.hippoom.runner.challenges.domain.model.user.UserId;
+import lombok.RequiredArgsConstructor;
 import org.springframework.core.MethodParameter;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.support.WebDataBinderFactory;
@@ -9,7 +10,10 @@ import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.method.support.ModelAndViewContainer;
 
 @Component
+@RequiredArgsConstructor
 public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolver {
+
+    private final SessionTokenService sessionTokenService;
 
         @Override
     public boolean supportsParameter(MethodParameter parameter) {
@@ -23,14 +27,11 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
                                   NativeWebRequest webRequest,
                                   WebDataBinderFactory binderFactory) throws Exception {
 
-        // TODO: Replace with real session-based authentication
-        // For now, return a mock UserId for testing isolation
-        // In real implementation, this would extract UserId from:
-        // - HTTP Session
-        // - JWT token
-        // - X-Session-Token header
-        // - Security context
+        String sessionToken = webRequest.getHeader("X-Session-Token");
+        if (sessionToken == null) {
+            throw new IllegalArgumentException("Missing X-Session-Token header");
+        }
 
-        return UserId.generate(); // Mock implementation
+        return sessionTokenService.getUserIdByToken(sessionToken);
     }
 }
