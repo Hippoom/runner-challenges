@@ -1,6 +1,9 @@
 package com.github.hippoom.runner.challenges.application;
 
 import com.github.hippoom.runner.challenges.command.StartChallengeCommand;
+import com.github.hippoom.runner.challenges.domain.model.challenge.Challenge;
+import com.github.hippoom.runner.challenges.domain.model.challenge.ChallengeRepository;
+import com.github.hippoom.runner.challenges.domain.model.challenge.StartChallengeSpecification;
 import com.github.hippoom.runner.challenges.domain.model.challenge.StartedChallenge;
 import com.github.hippoom.runner.challenges.domain.model.challenge.StartedChallengeRepository;
 import lombok.RequiredArgsConstructor;
@@ -13,15 +16,25 @@ import java.time.Instant;
 @RequiredArgsConstructor
 public class StartChallengeCommandHandler {
 
+    private final ChallengeRepository challengeRepository;
     private final StartedChallengeRepository startedChallengeRepository;
+    private final StartChallengeSpecification specification;
 
     @Transactional
     public StartedChallenge handle(StartChallengeCommand command) {
+        // 1. Load required entities early
+        Challenge challenge = challengeRepository.getOrThrow(command.getChallengeNumber());
+        
+        // 2. Validate preconditions early
+        specification.validate(challenge, command.getUserId());
+        
+        // 3. Execute business logic
         StartedChallenge startedChallenge = new StartedChallenge();
         startedChallenge.setUserId(command.getUserId());
         startedChallenge.setNumber(command.getChallengeNumber());
         startedChallenge.setWhen(Instant.now());
 
+        // 4. Persist changes
         return startedChallengeRepository.save(startedChallenge);
     }
 }

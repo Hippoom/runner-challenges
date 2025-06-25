@@ -19,4 +19,11 @@ public class ChallengeRepository {
                 .sorted(Comparator.comparing(Challenge::getNumber))
                 .collect(Collectors.toList());
     }
+    
+    public Challenge getOrThrow(ChallengeNumber number) {
+        return challenges.stream()
+                .filter(challenge -> challenge.getNumber().equals(number))
+                .findFirst()
+                .orElseThrow(() -> new NoSuchChallengeException(number));
+    }
 }

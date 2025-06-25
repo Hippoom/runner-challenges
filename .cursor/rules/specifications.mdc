@@ -3,35 +3,36 @@ description:
 globs:
 alwaysApply: false
 ---
+
 # Specification: Domain Business Rules and Constraints
 
 ## Purpose
+
 This rule guides specification implementation for encapsulating domain business rules and constraints.
-Focus on creating reusable, testable specifications that can be used for both validation (throwing exceptions) and querying (returning boolean results).
+Focus on creating reusable, testable specifications that can be used for both validation (throwing exceptions) and
+querying (returning boolean results).
 
 ## Core Design Principles
 
-### 1. Specification Structure
-- **Clear Naming**: Use descriptive names like `IsAvailableToStart`, `CanBeCompleted`, `MeetsRequirements`
-- **Single Responsibility**: Each specification should encapsulate one business rule or constraint
-- **Dual Interface**: Support both predicate (boolean) and validation (exception) modes
-- **Testability**: Easy to unit test in isolation
+Refer to @Make-it-work-then-make-it-good.mdc
 
-### 2. Package Organization
-- **Location**: Place specifications in `{root}.domain.specification` package
-- **Grouping**: Group related specifications by domain concept
-- **Interfaces**: Define common interfaces for related specifications
-- **Composition**: Use composite pattern for complex multi-rule scenarios
+### Specifications
 
-### 3. Usage Patterns
-- **Command Handlers**: Use validation mode (exceptions) for business rule enforcement
-- **Query Handlers**: Use predicate mode (boolean) for filtering and availability checks
-- **Controllers**: Use predicate mode for UI state and availability indicators
-- **Domain Services**: Use both modes depending on context
+- **Abstractions**:
+    - **Clear Naming**: Use descriptive names like `IsAvailableToStart`, `CanBeCompleted`, `MeetsRequirements`
+    - **Location**: Place specifications in `{root}.domain.specification` package
+    - **Single Responsibility**: Each specification should encapsulate one business rule or constraint
+    - **Dual Interface**:
+        - Support predicate (boolean) where we don't care the cause (usually in queries)
+        - Support validation (exception) where we care the cause (usually in command handling)
+- **Implementations**:
+    - **Testability**: Easy to unit test in isolation
+    - **Composition**: Use composite pattern for complex multi-rule scenarios
 
-## Basic Specification Patterns
+## Core Patterns
 
 ### Simple Predicate Specification
+
 ```java
 package com.example.domain.specification;
 
@@ -50,6 +51,7 @@ public class OrderIsAvailableToCancel {
 ```
 
 ### Validation Specification with Exceptions
+
 ```java
 package com.example.domain.specification;
 
@@ -64,12 +66,12 @@ public class OrderIsAvailableToCancel {
     public void validate(Order order, User user) {
         if (!order.isPending()) {
             throw new OrderCannotBeCancelledException(
-                order.getId(), "Order is not in pending status");
+                    order.getId(), "Order is not in pending status");
         }
 
         if (!order.getCustomerId().equals(user.getId())) {
             throw new OrderCannotBeCancelledException(
-                order.getId(), "Order does not belong to user");
+                    order.getId(), "Order does not belong to user");
         }
     }
 
@@ -85,6 +87,7 @@ public class OrderIsAvailableToCancel {
 ```
 
 ### Interface-Based Specification
+
 ```java
 package com.example.domain.specification;
 
@@ -93,6 +96,7 @@ import com.example.domain.model.User;
 
 public interface OrderAvailabilitySpecification {
     boolean test(Order order, User user);
+
     void validate(Order order, User user);
 }
 
@@ -102,8 +106,8 @@ public class OrderCancellationSpecification implements OrderAvailabilitySpecific
     @Override
     public boolean test(Order order, User user) {
         return order.isPending() &&
-               order.getCustomerId().equals(user.getId()) &&
-               order.getCreatedAt().isAfter(Instant.now().minus(Duration.ofHours(24)));
+                order.getCustomerId().equals(user.getId()) &&
+                order.getCreatedAt().isAfter(Instant.now().minus(Duration.ofHours(24)));
     }
 
     @Override
@@ -118,6 +122,7 @@ public class OrderCancellationSpecification implements OrderAvailabilitySpecific
 ## Advanced Specification Patterns
 
 ### Composite Specification
+
 ```java
 package com.example.domain.specification;
 
@@ -138,7 +143,7 @@ public class OrderAvailabilityComposite implements OrderAvailabilitySpecificatio
     @Override
     public boolean test(Order order, User user) {
         return specifications.stream()
-            .allMatch(spec -> spec.test(order, user));
+                .allMatch(spec -> spec.test(order, user));
     }
 
     @Override
@@ -149,6 +154,7 @@ public class OrderAvailabilityComposite implements OrderAvailabilitySpecificatio
 ```
 
 ### Criterion-Based Specification
+
 ```java
 package com.example.domain.specification;
 
@@ -173,7 +179,7 @@ public class MinimumDistanceCriterion implements CompletionCriterion {
     @Override
     public boolean appliesTo(Challenge challenge) {
         return challenge.getMinimumDistance() != null &&
-               challenge.getMinimumDistance() > 0;
+                challenge.getMinimumDistance() > 0;
     }
 
     @Override
@@ -197,13 +203,14 @@ public class ChallengeCanBeCompleted {
         }
 
         return criteria.stream()
-            .filter(criterion -> criterion.appliesTo(challenge))
-            .allMatch(criterion -> criterion.isMet(challenge, activity));
+                .filter(criterion -> criterion.appliesTo(challenge))
+                .allMatch(criterion -> criterion.isMet(challenge, activity));
     }
 }
 ```
 
 ### Configuration-Driven Specification
+
 ```java
 package com.example.config;
 
@@ -231,7 +238,9 @@ public class SpecificationConfiguration {
 ## Specification Usage Examples
 
 ### In Command Handlers (Validation Mode)
+
 ```java
+
 @Component
 @RequiredArgsConstructor
 public class CancelOrderCommandHandler {
@@ -253,7 +262,9 @@ public class CancelOrderCommandHandler {
 ```
 
 ### In Query Handlers (Predicate Mode)
+
 ```java
+
 @Component
 @RequiredArgsConstructor
 public class OrderQueryHandler {
@@ -264,15 +275,17 @@ public class OrderQueryHandler {
         User user = userRepository.getOrThrow(userId);
 
         return orderRepository.findByCustomerId(userId).stream()
-            .filter(order -> orderCancellationSpec.test(order, user))
-            .map(this::toSummary)
-            .collect(Collectors.toList());
+                .filter(order -> orderCancellationSpec.test(order, user))
+                .map(this::toSummary)
+                .collect(Collectors.toList());
     }
 }
 ```
 
 ### In REST Controllers (UI State)
+
 ```java
+
 @RestController
 @RequiredArgsConstructor
 public class OrderController {
@@ -284,17 +297,19 @@ public class OrderController {
         Order order = orderRepository.getOrThrow(orderId);
 
         return OrderRepresentation.builder()
-            .id(order.getId())
-            .status(order.getStatus())
-            .amount(order.getAmount())
-            .canBeCancelled(orderCancellationSpec.test(order, user))
-            .build();
+                .id(order.getId())
+                .status(order.getStatus())
+                .amount(order.getAmount())
+                .canBeCancelled(orderCancellationSpec.test(order, user))
+                .build();
     }
 }
 ```
 
 ### Complex Business Rules
+
 ```java
+
 @Component
 @RequiredArgsConstructor
 public class LoanEligibilitySpecification {
@@ -304,9 +319,9 @@ public class LoanEligibilitySpecification {
     public boolean test(LoanApplication application, User user) {
         // Multiple business rules combined
         return hasMinimumCreditScore(user) &&
-               hasStableIncome(application, user) &&
-               debtToIncomeRatioAcceptable(application, user) &&
-               meetsCollateralRequirements(application);
+                hasStableIncome(application, user) &&
+                debtToIncomeRatioAcceptable(application, user) &&
+                meetsCollateralRequirements(application);
     }
 
     public void validate(LoanApplication application, User user) {
@@ -338,7 +353,9 @@ public class LoanEligibilitySpecification {
 ## Testing Specifications
 
 ### Unit Test Examples
+
 ```java
+
 @RunWith(MockitoJUnitRunner.class)
 public class OrderCancellationSpecificationTest {
 
@@ -374,7 +391,7 @@ public class OrderCancellationSpecificationTest {
         // When & Then
         assertThat(specification.test(order, user)).isFalse();
         assertThatThrownBy(() -> specification.validate(order, user))
-            .isInstanceOf(OrderCannotBeCancelledException.class);
+                .isInstanceOf(OrderCannotBeCancelledException.class);
     }
 
     @Test
@@ -385,52 +402,13 @@ public class OrderCancellationSpecificationTest {
         // When & Then
         assertThat(specification.test(order, otherUser)).isFalse();
         assertThatThrownBy(() -> specification.validate(order, otherUser))
-            .isInstanceOf(OrderCannotBeCancelledException.class);
+                .isInstanceOf(OrderCannotBeCancelledException.class);
     }
 }
 ```
-
-### Integration Test Examples
-```java
-@SpringBootTest
-@Transactional
-public class OrderAvailabilityCompositeIntegrationTest {
-
-    @Autowired
-    private OrderAvailabilitySpecification orderAvailabilitySpec;
-
-    @Test
-    public void shouldEvaluateAllSpecificationsInComposite() {
-        // Given
-        User user = aUser().build();
-        Order order = anOrder()
-            .withCustomerId(user.getId())
-            .pending()
-            .withCreatedAt(Instant.now().minus(Duration.ofHours(1)))
-            .build();
-
-        // When
-        boolean result = orderAvailabilitySpec.test(order, user);
-
-        // Then
-        assertThat(result).isTrue();
-    }
-}
-```
-
-## Best Practices
-
-### ✅ Good Patterns
-- Clear, descriptive specification names that express business intent
-- Dual interface supporting both validation and predicate modes
-- Single responsibility - one business rule per specification
-- Composition pattern for complex multi-rule scenarios
-- Proper exception handling with meaningful error messages
-- Testable design with clear dependencies
-- Configuration-driven specification assembly
-- Separation of specification logic from domain entities
 
 ### ❌ Anti-Patterns
+
 ```java
 // DON'T: Unclear specification names
 public class OrderSpec { // ❌ What does this specification do?
@@ -444,10 +422,10 @@ public class OrderBusinessRules { // ❌ Too broad, multiple responsibilities
     public boolean canCancel(Order order, User user) {
         // ❌ Multiple unrelated business rules mixed together
         return order.isPending() &&
-               order.getCustomerId().equals(user.getId()) &&
-               user.hasPermission("CANCEL_ORDERS") &&
-               order.getAmount().isLessThan(Money.of(1000)) &&
-               isWithinBusinessHours();
+                order.getCustomerId().equals(user.getId()) &&
+                user.hasPermission("CANCEL_ORDERS") &&
+                order.getAmount().isLessThan(Money.of(1000)) &&
+                isWithinBusinessHours();
     }
 }
 
@@ -487,13 +465,3 @@ public class OrderCancellationSpec {
     }
 }
 ```
-
-### Key Principles
-- **Express Intent**: Specification names should clearly express the business rule
-- **Single Purpose**: Each specification should encapsulate one cohesive business rule
-- **Dual Mode**: Support both validation (exceptions) and querying (boolean) use cases
-- **Composition**: Use composite pattern for complex multi-rule scenarios
-- **Testability**: Design for easy unit testing with clear dependencies
-- **Domain Language**: Use business terminology that domain experts understand
-- **Immutable Logic**: Specifications should be side-effect free
-- **Proper Exceptions**: Use meaningful, specific exceptions for validation failures

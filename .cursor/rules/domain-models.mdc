@@ -9,37 +9,57 @@ alwaysApply: false
 ## Purpose
 
 This rule guides domain model implementation following domain-driven design principles.
-Focus on rich domain objects with proper encapsulation, type safety through value objects, and clear separation between
-entities, value objects, and domain services.
+Focus on rich domain objects with proper encapsulation.
 
 ## Core Design Principles
 
-### 1. Entity Design
+Refer to @Make-it-work-then-make-it-good.mdc
 
-- **Identity**: Each entity has a unique identity using dedicated ID value objects
-- **Encapsulation**: Rich domain objects with behavior, not anemic data containers
-- **Immutability**: Prefer immutable value objects and careful state management in entities
-- **Type Safety**: Use value objects instead of primitives to prevent primitive obsession
+### Entity
 
-### 2. Value Object Design
+- **Abstractions**:
+    - **Identity**: Each entity has a unique identity using dedicated ID value objects
+    - **Type Safety**: Use value objects instead of primitives to prevent primitive obsession
+- **Implementations**:
+    - **Encapsulation**: Rich domain objects with behavior, not anemic data containers
+        - **No God Class**: Only encapsulate behavior based on fields hold by the entity
+            - Delegate to Domain Services if the state change involves multiple entities
+            - Delegate to Domain Services if the state change involves external dependencies
+            - Delegate to Specifications if the business rule validation involves multiple entities
+            - Delegate to Specifications if the business rule validation involves external dependencies
+    - **Equals and HashCode**: Prefer @EqualsAndHashCode(of="{ID field}")
+    - **To String**: Prefer @ToString(of="{ID field}")
 
-- **Immutable**: Value objects should be immutable once created
-- **Equality by Value**: Two value objects are equal if their values are equal
-- **Self-Validating**: Value objects validate their own invariants
-- **Meaningful Names**: Use domain-specific names instead of generic types
+### Value Object
 
-### 3. Aggregate Design
+- **Abstractions**:
+    - **Type Safety**: Use value objects instead of primitives to prevent primitive obsession
+- **Implementations**:
+    - **Immutable**: Value objects should be immutable once created
+        - Getter/Setter is allowed for creation or framework
+        - Do not change the internal state by using setters once created
+    - **Self-Validating**: Value objects validate their own invariants
+    - **Equals and HashCode**: Prefer @EqualsAndHashCode()
+    - **To String**: Prefer @ToString()
 
-- **Consistency Boundaries**: Aggregates define transactional consistency boundaries
-- **Root Entity**: Only access aggregate members through the aggregate root
-- **Small Aggregates**: Keep aggregates small and focused
+### 3. Aggregate
 
-### 4. JPA Integration
+- **Abstractions**:
+    - **Root Entity**: Only access aggregate members through the aggregate root
+    - **Small Aggregates**: Keep aggregates small and focused
+    - **Repository**: Root Entity has its own repository, refer to @repositories.mdc
+- **Implementations**:
+    - **Consistency Boundaries**: Aggregates define invariants boundaries
 
-- **JPA Integration**: Use converters and proper annotations for persistence
-- **Repositories**: see @repositories.mdc
+### JPA Integration
 
-### 5. Test Data Builders
+- **Implementations**:
+    - Use converters and proper annotations for persistence
+    - For rich type ID, prefer @Embedded and @Embeddable
+    - Prefer @Version for optimistic locking
+    - Prefer @CreatedDate and @LastModifiedDate for entities
+
+### Test Data Builders
 
 - see @test-data-builders.mdc
 
@@ -78,7 +98,7 @@ public class Order {
 }
 ```
 
-### Identity Value Objects
+### Basic Value Objects
 
 ```java
 package com.example.domain.model.order;
@@ -96,77 +116,6 @@ public class OrderId {
         return new OrderId(value);
     }
 
-    public static OrderId generate() {
-        return new OrderId(UUID.randomUUID().toString());
-    }
-}
-```
-
-### Complex Value Objects
-
-```java
-
-@Data
-public class OrderAmount {
-    private BigDecimal value;
-    private Currency currency;
-
-    public OrderAmount(BigDecimal value, Currency currency) {
-        if (value == null || value.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("Amount cannot be null or negative");
-        }
-        if (currency == null) {
-            throw new IllegalArgumentException("Currency cannot be null");
-        }
-        this.value = value;
-        this.currency = currency;
-    }
-
-    public static OrderAmount of(BigDecimal value, Currency currency) {
-        return new OrderAmount(value, currency);
-    }
-
-    public static OrderAmount usd(BigDecimal value) {
-        return new OrderAmount(value, Currency.getInstance("USD"));
-    }
-
-    public OrderAmount add(OrderAmount other) {
-        if (!this.currency.equals(other.currency)) {
-            throw new CurrencyMismatchException(this.currency, other.currency);
-        }
-        return new OrderAmount(this.value.add(other.value), this.currency);
-    }
-
-    public boolean isGreaterThan(OrderAmount other) {
-        if (!this.currency.equals(other.currency)) {
-            throw new CurrencyMismatchException(this.currency, other.currency);
-        }
-        return this.value.compareTo(other.value) > 0;
-    }
-}
-```
-
-### Simple Value Objects
-
-```java
-
-@Data
-public class ChallengeName {
-    private String value;
-
-    public ChallengeName(String value) {
-        if (value == null || value.trim().isEmpty()) {
-            throw new IllegalArgumentException("Challenge name cannot be null or empty");
-        }
-        if (value.length() > 100) {
-            throw new IllegalArgumentException("Challenge name cannot exceed 100 characters");
-        }
-        this.value = value.trim();
-    }
-
-    public static ChallengeName of(String value) {
-        return new ChallengeName(value);
-    }
 }
 ```
 
@@ -212,8 +161,8 @@ public enum OrderStatus {
 @ToString(of = "id")
 @NoArgsConstructor(access = AccessLevel.PROTECTED) // For JPA
 public class Order {
-    @Id
-    @Convert(converter = OrderIdConverter.class)
+    @EmbeddedId
+    @AttributeOverride(name = "value", column = @Column(name = "id"))
     private OrderId id;
 
     @Embedded
@@ -276,49 +225,6 @@ public class Order {
     private String customerId; // ❌ Should be UserId
     private String status; // ❌ Should be OrderStatus enum
 
-    // ❌ Public setters exposing internal state
-    public void setStatus(String status) {
-        this.status = status;
-    }
 }
 
-// DON'T: Anemic domain model
-@Entity
-public class Order {
-    private OrderId id;
-    private OrderAmount amount;
-    private OrderStatus status;
-
-    // ❌ No domain behavior, just getters/setters
-    public OrderStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(OrderStatus status) {
-        this.status = status;
-    }
-}
-
-// DON'T: Mutable value objects
-@Data // ❌ Creates setters for value object
-public class OrderAmount {
-    private BigDecimal value;
-    private Currency currency;
-}
-
-// DON'T: No validation in value objects
-@Value
-public class ChallengeName {
-    String value; // ❌ No validation, accepts null/empty values
-}
-
-// DON'T: Generic exceptions
-public class Order {
-    public void confirm() {
-        if (status != OrderStatus.PENDING) {
-            throw new RuntimeException("Cannot confirm order"); // ❌ Generic exception
-        }
-        this.status = OrderStatus.CONFIRMED;
-    }
-}
 ```

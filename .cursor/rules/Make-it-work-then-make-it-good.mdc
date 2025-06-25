@@ -3,6 +3,7 @@ description:
 globs:
 alwaysApply: true
 ---
+
 # MAKE IT WORK THEN MAKE IT GOOD
 
 ## Overview
@@ -16,3 +17,25 @@ alwaysApply: true
 - Compatible with @RIPER-5.mdc
 - Propose ONLY what is REALLY needed given the context and user input
 - Propose the simplest approach first, and wait for user's input to refactor
+
+## Component Design
+
+For each component, we'll define the principles in two parts:
+
+- **Abstractions**: The external-facing contract or interface of a component.It specifies what behavior is
+  available—method signatures, inputs, outputs—while hiding how it works internally
+    - It simplifies complexity, exposing only essential operations relevant to the user or other components
+    - It defines behavioral or data abstractions, like start(), stop(), or search(int x, ...)—without revealing the
+      internal logic .
+    - It’s akin to a black box: you know what it does, not how it does it .
+- **Implementations**: The internal code or structure that makes the abstraction work—it’s the “how.”
+    - It includes method bodies, algorithms, internal data structures, and supporting classes
+    - It’s often referred to as information hiding or encapsulation—the internal secrets kept private behind the
+      interface
+    - The implementation must adhere to the abstraction’s contract but remains modular and interchangeable
+
+This is useful because we usually develop the components in phases:
+
+1. Define the abstractions
+2. First implementation for happy path
+3. Iterative implementations for alternative paths and refactoring

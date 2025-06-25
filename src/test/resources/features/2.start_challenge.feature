@@ -7,7 +7,6 @@ Feature: Start a Challenge
     When I select the challenge 1 to start
     Then the challenge should be marked as started
 
-  @to-be-implemented
   Scenario: Cannot start a challenge given it is locked
     When I select the challenge 2 to start
     Then I should be told that the challenge is unavailable

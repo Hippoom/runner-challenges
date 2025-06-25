@@ -149,4 +149,10 @@ public class RunnerSteps {
         assertTrue(startedChallenge.get("is_completed").asBoolean(),
                 "Challenge " + startedChallengeNumber + " should be marked as completed");
     }
+
+    @Then("I should be told that the challenge is unavailable")
+    public void iShouldBeToldThatTheChallengeIsUnavailable() {
+        assertEquals(HttpStatus.PRECONDITION_FAILED, startChallengeResponse.getStatusCode(),
+                "Start challenge endpoint should return HTTP 412 for unavailable challenge");
+    }
 } 

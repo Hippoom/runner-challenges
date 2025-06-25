@@ -1,0 +1,144 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+
+# Command Handling: Abstractions & Implementations
+
+## Purpose
+
+This rule guides the abstractions and implementations of command handling following CQRS principles.
+
+## What is Command Handling
+
+In CQRS (Command Query Responsibility Segregation),
+Command Handling refers to the process of managing "commands"—actions or instructions signaling a change in system state
+
+- A command represents an intention to perform a business operation (e.g. "RegisterUser", "PlaceOrder").
+- A Command Handler receives the command object and contains the application logic to process it.
+
+## Core Design Principles
+
+Refer to @Make-it-work-then-make-it-good.mdc
+
+### Command Objects
+
+- **Abstractions**:
+    - **Descriptive Naming**: Use action-based names (e.g., `StartChallenge`, `CompleteChallenge`)
+    - **Package**: Prefer `{root}.command` unless user has specific preference
+    - **Simple Data Containers**: Commands are POJOs with properties only
+        - **Prefer Domain Types**: Use domain types for properties whenever possible (e.g. `UserId` over `Long`)
+- **Implementations**:
+    - **No Business Logic**: Commands contain no business rules
+    - **Validation Annotations Allowed**: Commands can be annotated with JSR303 validation annotations
+
+### Command Handlers
+
+- **Abstractions**:
+    - **Descriptive Naming**: Use {commandName}Handler (e.g., `StartChallengeHandler`, `CompleteChallengeHandler`)
+    - **Package**: Prefer `{root}.application` unless user has specific preference
+    - **Returning**: No return (`void`) or return Domain Type
+- **Implementations**:
+    - **Transaction Boundaries**: Handlers define transaction scope
+    - **Delegations**: Delegate business logic to other components
+        - **Repositories**: Data access abstraction
+        - **Domain Objects**: Business logic implementation
+        - **Domain Services**: Business logic implementation or external dependencies access
+        - **Specifications**: Business logic implementation or external dependencies access
+        - **Event Publishers**: Messaging access abstraction
+    - **Dependency Injection**: Prefer constructor
+
+## Core Patterns
+
+### Basic Structure of Command Objects
+
+```java
+package com.example.command;
+
+import lombok.Data;
+
+import java.time.Instant;
+
+@Data
+public class StartChallenge {
+    private ChallengeNumber challengeNumber; // Domain Type
+    private UserId userId; // Domain Type
+    private Instant when; // When the command arrives
+}
+```
+
+### ❌ Anti-Patterns of Command Objects
+
+```java
+// DON'T: Business logic in command objects
+@Data
+public class StartChallenge {
+    private ChallengeNumber challengeNumber;
+
+    public boolean isValid() {  // ❌ Business logic in command
+        return challengeNumber != null;
+    }
+}
+```
+
+### Basic Structure of Command Handlers
+
+```java
+package com.example.application;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+@RequiredArgsConstructor
+@Transactional
+@Component
+public class StartChallengeCommandHandler {
+
+    public StartedChallenge handle(StartChallenge command) {
+        // Implementation here
+        return new StartedChallenge();
+    }
+}
+```
+
+### Repository Usage
+
+see @repositories.mdc
+
+```java
+// Prefer getOrThrow for required entities
+Challenge challenge = challengeRepository.getOrThrow(challengeNumber);
+
+// Use Optional only when absence is valid business case
+Optional<StartedChallenge> maybeStarted = startedChallengeRepository
+        .findByUserId(userId);
+
+// Avoid findById().orElseThrow() - use getOrThrow instead
+```
+
+### Specification Usage
+
+see @specifications.mdc
+
+```java
+public StartedChallenge handle(StartChallenge command) {
+    // 1. Load required entities early
+    Challenge challenge = challengeRepository.getOrThrow(command.getChallengeNumber());
+    User user = userRepository.getOrThrow(command.getUserId());
+
+    // 2. Validate preconditions early
+    startChallengeSpecification.validate(challenge, user);
+
+    // 3. Execute business logic
+    StartedChallenge startedChallenge;
+
+    // 4. Persist changes
+    return startedChallengeRepository.save(startedChallenge);
+}
+```
+
+
+
+
