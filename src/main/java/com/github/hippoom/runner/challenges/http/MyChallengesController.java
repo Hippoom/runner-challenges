@@ -35,9 +35,9 @@ public class MyChallengesController {
         List<Challenge> challenges = challengeRepository.findAll();
 
         // Use optimized toModels method to avoid N+1 queries
-        List<MyChallengeRepresentation> challengeRepresentations = 
-                assembler.toModels(challenges, userId.getValue());
-        
+        List<MyChallengeRepresentation> challengeRepresentations =
+                assembler.toModels(challenges, userId);
+
         return CollectionModel.of(challengeRepresentations);
     }
 
@@ -46,7 +46,7 @@ public class MyChallengesController {
         ChallengeNumber challengeNumber = new ChallengeNumber(number);
         StartChallengeCommand command = new StartChallengeCommand(challengeNumber, userId);
         StartedChallenge startedChallenge = commandHandler.handle(command);
-        
+
         return assembler.toModel(startedChallenge);
     }
 }

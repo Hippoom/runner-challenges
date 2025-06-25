@@ -11,7 +11,6 @@ Feature: Start a Challenge
     When I select the challenge 2 to start
     Then I should be told that the challenge is unavailable
 
-  @to-be-implemented
   Scenario: Cannot start a challenge given its prerequisites not completed
     When I select the challenge 3 to start
     Then I should be told that the challenge is unavailable

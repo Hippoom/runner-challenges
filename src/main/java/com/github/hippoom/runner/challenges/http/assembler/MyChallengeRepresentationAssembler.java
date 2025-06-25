@@ -3,6 +3,7 @@ package com.github.hippoom.runner.challenges.http.assembler;
 import com.github.hippoom.runner.challenges.domain.model.challenge.Challenge;
 import com.github.hippoom.runner.challenges.domain.model.challenge.CompletedChallenge;
 import com.github.hippoom.runner.challenges.domain.model.challenge.CompletedChallengeRepository;
+import com.github.hippoom.runner.challenges.domain.model.challenge.StartChallengeSpecification;
 import com.github.hippoom.runner.challenges.domain.model.challenge.StartedChallenge;
 import com.github.hippoom.runner.challenges.domain.model.challenge.StartedChallengeRepository;
 import com.github.hippoom.runner.challenges.domain.model.user.UserId;
@@ -20,22 +21,23 @@ import java.util.stream.Collectors;
 @Component
 @RequiredArgsConstructor
 public class MyChallengeRepresentationAssembler
-        implements RepresentationModelAssembler<Challenge, MyChallengeRepresentation> {
+    implements RepresentationModelAssembler<Challenge, MyChallengeRepresentation> {
 
     private final CompletedChallengeRepository completedChallengeRepository;
     private final StartedChallengeRepository startedChallengeRepository;
+    private final StartChallengeSpecification startChallengeSpecification;
 
     /**
      * Optimized method to convert multiple challenges, avoiding N+1 queries
      * by loading all completed challenges for the user at once.
      */
-    public List<MyChallengeRepresentation> toModels(List<Challenge> challenges, String userId) {
-        // Phase 1: Create basic representations
-        List<MyChallengeRepresentation> representations = createBasicRepresentations(challenges);
-        
+    public List<MyChallengeRepresentation> toModels(List<Challenge> challenges, UserId userId) {
+        // Phase 1: Create basic representations with availability
+        List<MyChallengeRepresentation> representations = createBasicRepresentations(challenges, userId);
+
         // Phase 2: Populate status fields
         populateStatusFields(representations, userId);
-        
+
         return representations;
     }
 
@@ -43,9 +45,9 @@ public class MyChallengeRepresentationAssembler
     public MyChallengeRepresentation toModel(Challenge challenge) {
         // This method is required by RepresentationModelAssembler interface
         // but should not be used as it would cause N+1 queries
-        throw new UnsupportedOperationException("Use toModels(List<Challenge>, String) instead to avoid N+1 queries");
+        throw new UnsupportedOperationException("Use toModels(List<Challenge>, UserId) instead to avoid N+1 queries");
     }
-    
+
     public MyChallengeRepresentation toModel(StartedChallenge startedChallenge) {
         MyChallengeRepresentation repr = new MyChallengeRepresentation();
         repr.setNumber(startedChallenge.getNumber().getValue());
@@ -58,43 +60,47 @@ public class MyChallengeRepresentationAssembler
     }
 
     /**
-     * Phase 1: Create basic representations with only core fields
+     * Phase 1: Create basic representations with core fields and availability
      */
-    private List<MyChallengeRepresentation> createBasicRepresentations(List<Challenge> challenges) {
+    private List<MyChallengeRepresentation> createBasicRepresentations(List<Challenge> challenges, UserId userId) {
+
         return challenges.stream()
-                .map(challenge -> {
-                    MyChallengeRepresentation repr = new MyChallengeRepresentation();
-                    repr.setNumber(challenge.getNumber().getValue());
-                    return repr;
-                })
-                .collect(Collectors.toList());
+            .map(challenge -> {
+                MyChallengeRepresentation repr = new MyChallengeRepresentation();
+                repr.setNumber(challenge.getNumber().getValue());
+
+                // Use specification to determine availability
+                repr.setAvailable(startChallengeSpecification.test(challenge, userId));
+
+                return repr;
+            })
+            .collect(Collectors.toList());
     }
 
     /**
      * Phase 2: Populate status fields using batch-loaded data
      */
-    private void populateStatusFields(List<MyChallengeRepresentation> representations, String userId) {
-        UserId userIdObj = new UserId(userId);
-        
+    private void populateStatusFields(List<MyChallengeRepresentation> representations, UserId userId) {
+
         // Load completed challenges for user in one query
         List<CompletedChallenge> completedChallenges = completedChallengeRepository
-                .findByUserId(userIdObj);
-        
+            .findByUserId(userId);
+
         Set<Integer> completedNumbers = completedChallenges.stream()
-                .map(completed -> completed.getNumber().getValue())
-                .collect(Collectors.toSet());
-        
+            .map(completed -> completed.getNumber().getValue())
+            .collect(Collectors.toSet());
+
         // Load current started challenge for user
-        Optional<StartedChallenge> currentStartedChallenge = startedChallengeRepository.findById(userIdObj);
+        Optional<StartedChallenge> currentStartedChallenge = startedChallengeRepository.findById(userId);
         Integer startedChallengeNumber = currentStartedChallenge
-                .map(started -> started.getNumber().getValue())
-                .orElse(null);
-        
+            .map(started -> started.getNumber().getValue())
+            .orElse(null);
+
         // Populate status fields for each representation
         representations.forEach(repr -> {
             repr.setCompleted(completedNumbers.contains(repr.getNumber()));
             repr.setStarted(Objects.equals(repr.getNumber(), startedChallengeNumber));
-            repr.setAvailable(false); // Hardcoded as per domain requirements
+            // Availability is already set in createBasicRepresentations
         });
     }
 }
