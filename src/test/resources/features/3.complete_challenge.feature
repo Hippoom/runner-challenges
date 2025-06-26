@@ -5,6 +5,7 @@ Feature: Complete a Challenge
 
   Scenario: Complete a challenge without criteria
     Given I select the challenge 1 to start
+    And the challenge does not require any completion criteria
     And the challenge should be marked as started
     When I upload a running activity
     Then the challenge should be marked as completed
