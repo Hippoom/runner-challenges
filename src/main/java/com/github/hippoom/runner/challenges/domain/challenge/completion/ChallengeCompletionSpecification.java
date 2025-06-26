@@ -1,6 +1,7 @@
-package com.github.hippoom.runner.challenges.domain.challenge;
+package com.github.hippoom.runner.challenges.domain.challenge.completion;
 
 import com.github.hippoom.runner.challenges.domain.activity.UserActivity;
+import com.github.hippoom.runner.challenges.domain.challenge.Challenge;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;

@@ -5,7 +5,7 @@ import com.github.hippoom.runner.challenges.command.StartChallengeCommand;
 import com.github.hippoom.runner.challenges.domain.challenge.Challenge;
 import com.github.hippoom.runner.challenges.domain.challenge.ChallengeNumber;
 import com.github.hippoom.runner.challenges.domain.challenge.ChallengeRepository;
-import com.github.hippoom.runner.challenges.domain.challenge.StartedChallenge;
+import com.github.hippoom.runner.challenges.domain.challenge.progress.StartedChallenge;
 import com.github.hippoom.runner.challenges.domain.user.UserId;
 import com.github.hippoom.runner.challenges.http.assembler.MyChallengeRepresentationAssembler;
 import com.github.hippoom.runner.challenges.http.representation.MyChallengeRepresentation;

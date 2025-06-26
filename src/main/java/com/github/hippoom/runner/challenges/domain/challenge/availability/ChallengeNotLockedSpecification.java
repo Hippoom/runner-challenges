@@ -1,8 +1,9 @@
-package com.github.hippoom.runner.challenges.domain.challenge;
+package com.github.hippoom.runner.challenges.domain.challenge.availability;
 
-import com.github.hippoom.runner.challenges.domain.user.UserId;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
+import com.github.hippoom.runner.challenges.domain.challenge.Challenge;
+import com.github.hippoom.runner.challenges.domain.user.UserId;
 
 @Component
 @Qualifier("challengeNotLockedSpec")

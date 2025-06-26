@@ -1,5 +1,9 @@
-package com.github.hippoom.runner.challenges.domain.challenge;
+package com.github.hippoom.runner.challenges.domain.challenge.availability;
 
+import com.github.hippoom.runner.challenges.domain.challenge.Challenge;
+import com.github.hippoom.runner.challenges.domain.challenge.ChallengeNumber;
+import com.github.hippoom.runner.challenges.domain.challenge.progress.CompletedChallenge;
+import com.github.hippoom.runner.challenges.domain.challenge.progress.CompletedChallengeRepository;
 import com.github.hippoom.runner.challenges.domain.user.UserId;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -35,7 +39,8 @@ public class PrerequisitesMetSpecification implements ChallengeAvailabilitySpeci
     
     private Set<Integer> getCompletedChallengeNumbers(UserId userId) {
         return completedChallengeRepository.findByUserId(userId).stream()
-                .map(completed -> completed.getNumber().getValue())
+                .map(CompletedChallenge::getNumber)
+                .map(ChallengeNumber::getValue)
                 .collect(Collectors.toSet());
     }
 } 

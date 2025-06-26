@@ -1,6 +1,6 @@
 package com.github.hippoom.runner.challenges.config;
 
-import com.github.hippoom.runner.challenges.domain.challenge.ChallengeAvailabilitySpecification;
+import com.github.hippoom.runner.challenges.domain.challenge.availability.ChallengeAvailabilitySpecification;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

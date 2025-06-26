@@ -1,11 +1,11 @@
 package com.github.hippoom.runner.challenges.http.assembler;
 
 import com.github.hippoom.runner.challenges.domain.challenge.Challenge;
-import com.github.hippoom.runner.challenges.domain.challenge.CompletedChallenge;
-import com.github.hippoom.runner.challenges.domain.challenge.CompletedChallengeRepository;
-import com.github.hippoom.runner.challenges.domain.challenge.StartChallengeSpecification;
-import com.github.hippoom.runner.challenges.domain.challenge.StartedChallenge;
-import com.github.hippoom.runner.challenges.domain.challenge.StartedChallengeRepository;
+import com.github.hippoom.runner.challenges.domain.challenge.progress.CompletedChallenge;
+import com.github.hippoom.runner.challenges.domain.challenge.progress.CompletedChallengeRepository;
+import com.github.hippoom.runner.challenges.domain.challenge.availability.StartChallengeSpecification;
+import com.github.hippoom.runner.challenges.domain.challenge.progress.StartedChallenge;
+import com.github.hippoom.runner.challenges.domain.challenge.progress.StartedChallengeRepository;
 import com.github.hippoom.runner.challenges.domain.user.UserId;
 import com.github.hippoom.runner.challenges.http.representation.MyChallengeRepresentation;
 import lombok.RequiredArgsConstructor;

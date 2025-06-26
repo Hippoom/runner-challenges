@@ -1,4 +1,4 @@
-package com.github.hippoom.runner.challenges.domain.challenge;
+package com.github.hippoom.runner.challenges.domain.challenge.progress;
 
 import com.github.hippoom.runner.challenges.domain.user.UserId;
 import org.springframework.data.jpa.repository.JpaRepository;
