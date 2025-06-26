@@ -119,6 +119,27 @@ public class RunnerSteps {
         UserActivity userActivity = aUserActivity().withUserId(currentUserId).build();
         eventPublisher.publishEvent(userActivity);
     }
+    
+    @When("I upload a running activity with required distance")
+    public void iUploadARunningActivityWithRequiredDistance() {
+        // Create activity with 5.5km distance (meets challenge 4's 5.0km requirement)
+        UserActivity userActivity = aUserActivity()
+                .withUserId(currentUserId)
+                .withDistance(5.5)
+                .withDuration(1800) // 30 minutes
+                .build();
+        eventPublisher.publishEvent(userActivity);
+    }
+    
+    @When("I upload a running activity with required pace")
+    public void iUploadARunningActivityWithRequiredPace() {
+        // Create activity with 5.5 min/km pace and 5km distance (meets challenge 5's 6.0 min/km requirement)
+        UserActivity userActivity = aUserActivity()
+                .withUserId(currentUserId)
+                .withPace(5.5, 5.0) // 5.5 min/km pace, 5km distance
+                .build();
+        eventPublisher.publishEvent(userActivity);
+    }
 
     @Then("the challenge should be marked as completed")
     public void theChallengeShouldBeMarkedAsCompleted() throws Exception {

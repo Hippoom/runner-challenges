@@ -9,4 +9,6 @@ import java.time.Instant;
 public class UserActivity {
     private UserId userId;
     private Instant when;
-} 
+    private String type;
+    private UserActivityMetricSummary metricSummary;
+}

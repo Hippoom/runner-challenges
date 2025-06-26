@@ -29,6 +29,33 @@ public class UserActivityTestDataBuilder {
         target.setWhen(when);
         return this;
     }
+    
+    public UserActivityTestDataBuilder withDistance(double distance) {
+        ensureMetricSummary();
+        target.getMetricSummary().setDistance(distance);
+        return this;
+    }
+    
+    public UserActivityTestDataBuilder withDuration(int durationSeconds) {
+        ensureMetricSummary();
+        target.getMetricSummary().setDuration(durationSeconds);
+        return this;
+    }
+    
+    public UserActivityTestDataBuilder withPace(double pacePerKm, double distance) {
+        ensureMetricSummary();
+        target.getMetricSummary().setDistance(distance);
+        // Calculate duration from pace and distance
+        int durationSeconds = (int) (pacePerKm * distance * 60);
+        target.getMetricSummary().setDuration(durationSeconds);
+        return this;
+    }
+    
+    private void ensureMetricSummary() {
+        if (target.getMetricSummary() == null) {
+            target.setMetricSummary(new UserActivityMetricSummary());
+        }
+    }
 
     public UserActivity build() {
         return target;

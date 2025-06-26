@@ -13,4 +13,6 @@ public class Challenge {
     private ChallengeNumber number;
     private boolean locked;
     private List<ChallengeNumber> prerequisites;
+    private Double minimumDistance;
+    private Double minimumPace;
 }
