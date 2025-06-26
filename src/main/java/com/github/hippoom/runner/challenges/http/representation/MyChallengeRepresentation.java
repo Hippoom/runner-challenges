@@ -20,4 +20,10 @@ public class MyChallengeRepresentation extends RepresentationModel<MyChallengeRe
 
     @JsonProperty("is_started")
     private boolean isStarted;
+
+    @JsonProperty("minimum_distance")
+    private Double minimumDistance;
+
+    @JsonProperty("minimum_pace")
+    private Double minimumPace;
 }

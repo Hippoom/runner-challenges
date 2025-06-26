@@ -72,6 +72,10 @@ public class MyChallengeRepresentationAssembler
                 // Use specification to determine availability
                 repr.setAvailable(startChallengeSpecification.test(challenge, userId));
 
+                // Set completion criteria fields
+                repr.setMinimumDistance(challenge.getMinimumDistance());
+                repr.setMinimumPace(challenge.getMinimumPace());
+
                 return repr;
             })
             .collect(Collectors.toList());

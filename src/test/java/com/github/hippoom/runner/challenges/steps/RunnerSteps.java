@@ -1,6 +1,7 @@
 package com.github.hippoom.runner.challenges.steps;
 
 import io.cucumber.java.Before;
+import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -175,5 +176,75 @@ public class RunnerSteps {
     public void iShouldBeToldThatTheChallengeIsUnavailable() {
         assertEquals(HttpStatus.PRECONDITION_FAILED, startChallengeResponse.getStatusCode(),
                 "Start challenge endpoint should return HTTP 412 for unavailable challenge");
+    }
+
+    @Given("the challenge requires a minimum distance of {double} km")
+    public void theChallengeRequiresAMinimumDistanceOfKm(double expectedDistance) throws Exception {
+        // Make HTTP request to get challenge list
+        String challengesUrl = "http://localhost:" + mainPort + "/api/my/challenges";
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-Session-Token", currentSessionToken);
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+        ResponseEntity<String> response = restTemplate.exchange(challengesUrl, HttpMethod.GET, entity, String.class);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode(),
+                "Challenges endpoint should return HTTP 200");
+
+        // Parse JSON response to find the challenge and validate its minimum distance
+        JsonNode responseJson = objectMapper.readTree(response.getBody());
+        JsonNode challengesArray = responseJson.get("_embedded").get("challenges");
+        
+        JsonNode targetChallenge = null;
+        for (JsonNode challenge : challengesArray) {
+            if (challenge.get("number").asInt() == startedChallengeNumber) {
+                targetChallenge = challenge;
+                break;
+            }
+        }
+        
+        assertNotNull(targetChallenge, 
+                "Challenge " + startedChallengeNumber + " should be found in the response");
+        
+        JsonNode minimumDistanceNode = targetChallenge.get("minimum_distance");
+        assertNotNull(minimumDistanceNode, 
+                "Challenge " + startedChallengeNumber + " should have minimum_distance field");
+        
+        assertEquals(expectedDistance, minimumDistanceNode.asDouble(), 0.01,
+                "Challenge " + startedChallengeNumber + " minimum distance should be " + expectedDistance + " km");
+    }
+
+    @Given("the challenge requires a minimum pace of {double} minutes per km")
+    public void theChallengeRequiresAMinimumPaceOfMinutesPerKm(double expectedPace) throws Exception {
+        // Make HTTP request to get challenge list
+        String challengesUrl = "http://localhost:" + mainPort + "/api/my/challenges";
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-Session-Token", currentSessionToken);
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+        ResponseEntity<String> response = restTemplate.exchange(challengesUrl, HttpMethod.GET, entity, String.class);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode(),
+                "Challenges endpoint should return HTTP 200");
+
+        // Parse JSON response to find the challenge and validate its minimum pace
+        JsonNode responseJson = objectMapper.readTree(response.getBody());
+        JsonNode challengesArray = responseJson.get("_embedded").get("challenges");
+        
+        JsonNode targetChallenge = null;
+        for (JsonNode challenge : challengesArray) {
+            if (challenge.get("number").asInt() == startedChallengeNumber) {
+                targetChallenge = challenge;
+                break;
+            }
+        }
+        
+        assertNotNull(targetChallenge, 
+                "Challenge " + startedChallengeNumber + " should be found in the response");
+        
+        JsonNode minimumPaceNode = targetChallenge.get("minimum_pace");
+        assertNotNull(minimumPaceNode, 
+                "Challenge " + startedChallengeNumber + " should have minimum_pace field");
+        
+        assertEquals(expectedPace, minimumPaceNode.asDouble(), 0.01,
+                "Challenge " + startedChallengeNumber + " minimum pace should be " + expectedPace + " minutes per km");
     }
 } 
