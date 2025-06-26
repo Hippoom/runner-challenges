@@ -1,0 +1,345 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+
+# Test Data Builder: Test Object Creation Patterns
+
+## Purpose
+
+This rule guides test data builder implementation for creating domain objects in tests.
+Focus on readable, maintainable test data creation with sensible defaults, method chaining, and clear builder patterns
+that support complex object graphs.
+
+## Core Design Principles
+
+### Key Principles
+
+- **Defaults First**: Provide sensible defaults that work for most test cases
+- **Fluent API**: Support method chaining for readable test data setup
+- **Domain Language**: Use domain-specific methods that express business concepts
+- **Primitive Types Allowed**: Use primitive parameters if it simplifies object building
+- **Composition**: Leverage other builders for complex object relationships
+- **Encapsulation**: Use reflection to set private fields when necessary
+- **Clear Intent**: Method names should clearly express what they do
+- **Build Once**: build() method should return a complete, valid object
+
+### Naming Conventions
+
+- **Builder Class**: `{DomainModel}TestDataBuilder`
+- **Factory Method**: `a{DomainModel}()` or `an{DomainModel}()`
+- **Setter Methods**: `with{PropertyName}(value)`
+- **State Methods**: Domain-specific state methods (e.g., `pending()`, `confirmed()`)
+
+### Builder Structure
+
+- **Target Field**: Store the object being built in a `target` field
+- **Method Chaining**: All builder methods return `this` for fluent API
+- **Sensible Defaults**: Static factory methods provide reasonable default values
+- **Immutable Result**: `build()` method returns the completed object
+
+### Composition
+
+- **Nested Builders**: Use other builders for complex relationships
+- **Default Relationships**: Automatically create related objects when needed
+- **Override Capability**: Allow overriding default relationships
+
+## Core Patterns
+
+### Simple Entity Builder
+
+```java
+package com.example.domain.order;
+
+import java.time.Instant;
+import java.util.UUID;
+
+public class OrderTestDataBuilder {
+    private Order target = new Order();
+
+    public OrderTestDataBuilder withId(OrderId id) {
+        target.setId(id);
+        return this;
+    }
+
+    public OrderTestDataBuilder withCustomerId(UserId customerId) {
+        target.setCustomerId(customerId);
+        return this;
+    }
+
+    public OrderTestDataBuilder withCustomerId(UserId customerId) {
+        target.setCustomerId(customerId);
+        return this;
+    }
+
+    public OrderTestDataBuilder withAmount(OrderAmount amount) {
+        target.setOrderAmount(amount);
+        return this;
+    }
+
+    public OrderTestDataBuilder withCreatedAt(Instant instant) {
+        target.setCreatedAt(instant);
+        return this;
+    }
+
+    // Domain-specific state methods
+    public OrderTestDataBuilder pending() {
+        return withStatus(OrderStatus.PENDING);
+    }
+
+    public OrderTestDataBuilder confirmed() {
+        return withStatus(OrderStatus.CONFIRMED);
+    }
+
+    public OrderTestDataBuilder shipped() {
+        return withStatus(OrderStatus.SHIPPED);
+    }
+
+    public Order build() {
+        return target;
+    }
+
+    // Static factory with sensible defaults
+    public static OrderTestDataBuilder anOrder() {
+        return new OrderTestDataBuilder()
+                .withId(OrderId.generate())
+                .withCustomerId(aUser().build().getId())
+                .withAmount(OrderAmount.usd(new BigDecimal("100.00")))
+                .pending()
+                .withCreatedAt(Instant.now());
+    }
+}
+```
+
+### Value Object Builder
+
+```java
+public class OrderAmountTestDataBuilder {
+    private BigDecimal value = new BigDecimal("100.00");
+    private Currency currency = Currency.getInstance("USD");
+
+    public OrderAmountTestDataBuilder withValue(BigDecimal value) {
+        this.value = value;
+        return this;
+    }
+
+    public OrderAmountTestDataBuilder withCurrency(Currency currency) {
+        this.currency = currency;
+        return this;
+    }
+
+    public OrderAmountTestDataBuilder inUSD() {
+        return withCurrency(Currency.getInstance("USD"));
+    }
+
+    public OrderAmountTestDataBuilder inEUR() {
+        return withCurrency(Currency.getInstance("EUR"));
+    }
+
+    public OrderAmount build() {
+        return OrderAmount.of(value, currency);
+    }
+
+    public static OrderAmountTestDataBuilder anOrderAmount() {
+        return new OrderAmountTestDataBuilder();
+    }
+
+    public static OrderAmountTestDataBuilder anOrderAmountOf(String amount) {
+        return new OrderAmountTestDataBuilder()
+                .withValue(new BigDecimal(amount));
+    }
+}
+```
+
+### Provides Primitive Parameters to Simplify Customization
+
+```java
+package com.example.domain.order;
+
+import java.time.Instant;
+import java.util.UUID;
+
+public class OrderTestDataBuilder {
+    public OrderTestDataBuilder withAmount(double amount) { // is also OK, because it is easy to use
+        this.target.setAmount(anOrderAmount().withValue(amount).build());
+        return this;
+    }
+```
+
+### ListOfSize Pattern for Multiple Objects
+
+Based on the [Hippoom test-data-builder library](https:/github.com/Hippoom/test-data-builder),
+this pattern provides a fluent API for creating and customizing lists of test data.
+
+```java
+import static com.github.hippoom.tdb.GenericTestDataListBuilder.listOfSize;
+import static com.example.OrderTestDataBuilder.anOrder;
+
+// Basic usage - create 5 orders with default values
+List<Order> orders = listOfSize(5, sequence -> anOrder()).build();
+
+        // Customize first 2 elements
+        List<Order> orders = listOfSize(5, sequence -> anOrder())
+                .theFirst(2, builder -> builder.priority())
+                .build();
+
+        // Customize last 2 elements
+        List<Order> orders = listOfSize(5, sequence -> anOrder())
+                .theLast(2, builder -> builder.paid())
+                .build();
+
+        // Customize specific element by index (1-based)
+        List<Order> orders = listOfSize(5, sequence -> anOrder())
+                .number(3, builder -> builder.cancelled())
+                .build();
+
+        // Customize multiple specific elements
+        List<Order> orders = listOfSize(5, sequence -> anOrder())
+                .number(2, 4).apply(builder -> builder.express())
+                .build();
+
+        // Customize a range of consecutive elements
+        List<Order> orders = listOfSize(10, sequence -> anOrder())
+                .range(3, 7).apply(builder -> builder.bulk())
+                .build();
+
+        // Customize all elements
+        List<Order> orders = listOfSize(5, sequence -> anOrder())
+                .all().apply(builder -> builder.confirmed())
+                .build();
+
+        // Shorthand for all elements
+        List<Order> orders = listOfSize(5, sequence -> anOrder())
+                .all(builder -> builder.confirmed())
+                .build();
+
+        // Customize all elements with sequence-aware function
+        List<Order> orders = listOfSize(5, sequence -> anOrder())
+                .allWithSeq((builder, seq) -> builder.withId("ORDER-" + seq))
+                .build();
+
+        // Complex combinations
+        List<Order> orders = listOfSize(10, sequence -> anOrder())
+                .theFirst(3, builder -> builder.priority())
+                .number(5).apply(builder -> builder.cancelled())
+                .range(7, 9).apply(builder -> builder.express())
+                .theLast(1, builder -> builder.paid())
+                .build();
+
+        // Using custom build method
+        List<OrderDto> orderDtos = listOfSize(5, sequence -> anOrder())
+                .all(builder -> builder.confirmed())
+                .build(builder -> builder.toDto());
+
+        // Using builder convenience methods
+        List<Order> orders = OrderTestDataBuilder.listOfSize(5)
+                .theFirst(2, builder -> builder.priority())
+                .build();
+```
+
+### ❌ Anti-Patterns
+
+```java
+// DON'T: Builders without defaults
+public static OrderTestDataBuilder anOrder() {
+    return new OrderTestDataBuilder(); // ❌ No defaults, requires manual setup
+}
+
+// DON'T: Breaking method chaining
+public OrderTestDataBuilder withAmount(OrderAmount amount) {
+    this.target.setAmount(amount);
+    // ❌ Missing return this;
+}
+
+// DON'T: Unclear method names
+public OrderTestDataBuilder status1() { // ❌ Unclear what status1 means
+    return withStatus(OrderStatus.PENDING);
+}
+
+// DON'T: Builders that expose target directly
+public Order getTarget() { // ❌ Breaks encapsulation
+    return target;
+}
+
+// DON'T: Builders without build() method
+public class OrderTestDataBuilder {
+    // ❌ No build() method, unclear how to get the object
+}
+
+// DON'T: Hardcoded loops for creating multiple objects
+public void createMultipleOrders() {
+    List<Order> orders = new ArrayList<>();
+    for (int i = 0; i < 5; i++) { // ❌ Manual loop instead of listOfSize
+        orders.add(anOrder().build());
+    }
+}
+
+// DON'T: Non-customizable list creation
+public static List<Order> createOrders() { // ❌ Fixed size, no customization
+    return Arrays.asList(
+            anOrder().build(),
+            anOrder().build(),
+            anOrder().build()
+    );
+}
+
+// DON'T: Complex manual customization logic
+List<Order> orders = new ArrayList<>();
+for(
+int i = 0;
+i< 10;i++){
+OrderTestDataBuilder builder = anOrder();
+    if(i< 2){ // ❌ Manual index logic instead of theFirst()
+builder =builder.
+
+priority();
+    }
+            if(i ==4){ // ❌ Manual index logic instead of number()
+builder =builder.
+
+cancelled();
+    }
+            orders.
+
+add(builder.build());
+        }
+
+// DON'T: Non-fluent API for list customization
+public static List<Order> createCustomOrders() {
+    List<Order> orders = listOfSize(5, sequence -> anOrder()).build();
+    orders.get(0).setPriority(true); // ❌ Mutating after creation
+    orders.get(1).setPriority(true);
+    return orders;
+}
+
+// DON'T: Complex manual customization logic
+List<Order> orders = new ArrayList<>();
+for(
+int i = 0;
+i< 10;i++){
+OrderTestDataBuilder builder = anOrder();
+    if(i< 2){ // ❌ Manual index logic instead of theFirst()
+builder =builder.
+
+priority();
+    }
+            if(i ==4){ // ❌ Manual index logic instead of number()
+builder =builder.
+
+cancelled();
+    }
+            orders.
+
+add(builder.build());
+        }
+
+// DON'T: Non-fluent API for list customization
+public static List<Order> createCustomOrders() {
+    List<Order> orders = listOfSize(5, sequence -> anOrder()).build();
+    orders.get(0).setPriority(true); // ❌ Mutating after creation
+    orders.get(1).setPriority(true);
+    return orders;
+}
+```
+

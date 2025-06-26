@@ -1,0 +1,124 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+
+# Exception: Domain Exception Patterns
+
+## Purpose
+
+This rule guides exception design following domain-driven principles.
+Focus on meaningful, context-rich exceptions that support business logic and provide clear error handling patterns.
+
+## Core Design Principles
+
+- **Meaningful names**: Exception names should clearly indicate the business rule violation
+  - **Naming convention**: Descriptive action-based names (e.g., `CannotCancelOrderException`, `NoSuchChallengeException`)
+- **Prefer unchecked exceptions**: `RuntimeException` for flexibility in handling
+- **Package placement**: Same package as the behavior that throws it
+- **Rich context**: Include business object identifiers and relevant state
+  - **Description**: What went wrong
+  - **Context**: Business object details (ID, state, etc.)
+  - **Cause**: Why it happened (when applicable)
+- **Fail fast**: Throw exceptions early when preconditions are violated
+- **Centralized handling**: Handle exceptions at application boundaries with appropriate responses
+
+
+
+
+## Core Patterns
+
+### Simple Exception
+
+```java
+package com.example.domain.challenge;
+
+public class NoSuchChallengeException extends RuntimeException {
+
+    public NoSuchChallengeException(ChallengeId challengeId) {
+        super("Challenge not found: " + challengeId);
+    }
+}
+```
+
+### Multiple Failure Scenarios
+
+```java
+package com.example.domain.challenge;
+
+public class CannotStartChallengeException extends RuntimeException {
+
+    public static CannotStartChallengeException alreadyStarted(ChallengeId challengeId) {
+        return new CannotStartChallengeException(challengeId, "it has already been started");
+    }
+
+    public static CannotStartChallengeException notAvailable(ChallengeId challengeId) {
+        return new CannotStartChallengeException(challengeId, "it is not available");
+    }
+
+    public static CannotStartChallengeException userNotEligible(ChallengeId challengeId, UserId userId) {
+        return new CannotStartChallengeException(challengeId, "user " + userId + " is not eligible");
+    }
+
+    private CannotStartChallengeException(ChallengeId challengeId, String reason) {
+        super("Cannot start challenge[" + challengeId + "] because " + reason);
+    }
+}
+```
+
+### Centralized Exception Handling
+
+Controller Advice Pattern
+
+```java
+package com.example.http.support;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@ControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(NoSuchChallengeException.class)
+    public ResponseEntity<ErrorResponse> handle(NoSuchChallengeException ex) {
+        log.info("Challenge not found: {}", ex.getMessage());
+        return ResponseEntity.notFound().build();
+    }
+
+    @ExceptionHandler(CannotStartChallengeException.class)
+    public ResponseEntity<ErrorResponse> handle(CannotStartChallengeException ex) {
+        log.info("Business rule violation: {}", ex.getMessage());
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("CANNOT_START_CHALLENGE", ex.getMessage()));
+    }
+}
+```
+
+### ❌ Anti-Patterns
+
+```java
+// DON'T: Generic exceptions
+throw new RuntimeException("Something went wrong"); // ❌
+
+// DON'T: Checked exceptions for business rules
+public class CannotStartChallengeException extends Exception {
+} // ❌
+
+// DON'T: Exceptions without context
+public class CannotStartChallengeException extends RuntimeException {
+    public CannotStartChallengeException() {
+        super("Cannot start challenge"); // ❌ No context
+    }
+}
+
+// DON'T: Complex message assembly
+throw new CannotStartChallengeException(
+    "Cannot start challenge "+challenge.getId() +
+        " for user "+userId +" because..."); // ❌ Complex assembly
+```
+
+

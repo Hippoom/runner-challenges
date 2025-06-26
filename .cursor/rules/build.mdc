@@ -1,0 +1,10 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+Whenever you need to validate the changes, please use the following command
+
+```shell
+./gradlew clean build
+```

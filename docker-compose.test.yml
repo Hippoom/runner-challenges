@@ -1,0 +1,22 @@
+services:
+  test-db:
+    image: postgres:15.12
+    container_name: runner-challenges-test-db
+    environment:
+      POSTGRES_DB: runner_challenges_test
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+    ports:
+      - "5433:5432"  # Map container's 5432 to host's 5433
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user -d runner_challenges_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    # No volumes for test environment - we want fresh data for each test run
+
+networks:
+  test-network:
+    name: runner-challenges-test-network

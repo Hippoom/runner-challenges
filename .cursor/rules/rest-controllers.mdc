@@ -1,0 +1,324 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# REST Controller: Web API Patterns
+
+## Purpose
+This rule guides REST controller implementation following clean architecture principles.
+Focus on thin controllers that delegate to application services, with proper separation between HTTP concerns and business logic.
+
+## Core Design Principles
+
+### 1. Controller Responsibility
+- **Thin Controllers**: Controllers should only handle HTTP concerns
+- **Delegation Pattern**: Delegate business logic to command/query handlers
+- **Single Responsibility**: One controller per business aggregate or bounded context
+- **Clear Mapping**: Use appropriate HTTP methods for operations
+- **Domain Types**: Prefer domain types over primitives for path variables
+- **Command/Query Objects**: Use command/query objects as method parameters instead of primitive parameters
+- **Custom Annotations**: Use @Command and @Query annotations instead of @RequestBody for automatic value injection
+
+### 2. HTTP Method Mapping
+- **GET**: Query operations (read-only, no side effects)
+- **POST**: Command operations (create, modify, actions)
+- **PUT**: AVOID unless required
+- **PATCH**: AVOID unless required
+- **DELETE**: AVOID unless required
+
+### 3. Response Handling
+- **Consistent Format**: Use standard response patterns
+- **Proper Status Codes**: Return appropriate HTTP status codes
+- **Error Handling**: Centralized exception handling via `@ControllerAdvice`
+
+## Core Patterns
+
+### Basic REST Controller
+```java
+package com.example.http;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.http.ResponseEntity;
+
+@RestController
+@RequestMapping("/api/challenges")
+@RequiredArgsConstructor
+public class ChallengeController {
+
+    private final GetChallengeQueryHandler getChallengeQueryHandler;
+    private final StartChallengeCommandHandler startChallengeCommandHandler;
+    private final ChallengeRepresentationAssembler assembler;
+
+    @GetMapping("/{id}")
+    public ChallengeRepresentation getChallenge(@PathVariable ChallengeId id) {
+        Challenge challenge = getChallengeQueryHandler.handle(new GetChallengeQuery(id));
+        return assembler.toRepresentation(challenge);
+    }
+
+    @PostMapping("/{id}/start")
+    public ChallengeRepresentation startChallenge(@Command StartChallengeCommand command) {
+        StartedChallenge result = startChallengeCommandHandler.handle(command);
+        return assembler.toRepresentation(result);
+    }
+}
+```
+
+### Query Operation Pattern
+```java
+@GetMapping("/my/challenges")
+public List<ChallengeRepresentation> listMyChallenges(ListMyChallengesQuery query) {
+    // Delegate to query handler - query object constructed from @CurrentUser and request params
+    List<Challenge> challenges = listChallengesQueryHandler.handle(query);
+
+    // Convert to representation via assembler
+    return assembler.toRepresentations(challenges);
+}
+```
+
+### Command Operation Pattern
+```java
+@PostMapping
+public ResponseEntity<ChallengeRepresentation> createChallenge(@Command CreateChallengeCommand command) {
+    // Delegate to command handler - command object constructed from request body + injected values
+    Challenge created = createChallengeCommandHandler.handle(command);
+
+    // Convert to representation
+    ChallengeRepresentation representation = assembler.toRepresentation(created);
+
+    return ResponseEntity.status(HttpStatus.CREATED).body(representation);
+}
+```
+
+## Delegation Patterns
+
+### Query Handler Delegation
+```java
+// Simple query - delegate to repository (acts as query handler)
+@GetMapping("/{id}")
+public ChallengeRepresentation getChallenge(@PathVariable ChallengeId id) {
+    Challenge challenge = challengeRepository.getOrThrow(id);
+    return assembler.toRepresentation(challenge);
+}
+
+// Complex query - delegate to dedicated query handler
+@GetMapping("/search")
+public List<ChallengeRepresentation> searchChallenges(SearchChallengesQuery query) {
+    // Query object constructed from request parameters
+    List<Challenge> results = searchChallengesQueryHandler.handle(query);
+    return assembler.toRepresentations(results);
+}
+```
+
+### Command Handler Delegation
+```java
+@PostMapping("/{id}/complete")
+public void completeChallenge(@Command CompleteChallengeCommand command) {
+    // Command object constructed from path variable + injected values (current user, timestamp)
+    completeChallengeCommandHandler.handle(command);
+}
+```
+
+## Parameter Binding Patterns
+
+### Command/Query Object Construction
+```java
+// Custom @Command annotation automatically constructs command objects from:
+// - @RequestBody content (if present)
+// - @PathVariable parameters
+// - Injected values (current user, timestamp, request context)
+
+@PostMapping("/{challengeId}/start")
+public ChallengeRepresentation startChallenge(@Command StartChallengeCommand command) {
+    // StartChallengeCommand constructed from:
+    // - challengeId (path variable)
+    // - currentUser (auto-injected)
+    // - when (auto-injected timestamp)
+    return assembler.toRepresentation(startChallengeCommandHandler.handle(command));
+}
+
+// Queries use @Query annotation for similar auto-construction
+@GetMapping("/search")
+public List<ChallengeRepresentation> searchChallenges(@Query SearchChallengesQuery query) {
+    // SearchChallengesQuery constructed from:
+    // - query (request parameter)
+    // - page (request parameter with default)
+    // - size (request parameter with default)
+    // - currentUser (auto-injected if needed)
+    return assembler.toRepresentations(searchChallengesQueryHandler.handle(query));
+}
+```
+
+### Custom Annotation Implementation
+```java
+// @Command annotation definition
+@Target(ElementType.PARAMETER)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface Command {
+}
+
+// Command argument resolver
+@Component
+public class CommandArgumentResolver implements HandlerMethodArgumentResolver {
+
+    @Override
+    public boolean supportsParameter(MethodParameter parameter) {
+        return parameter.hasParameterAnnotation(Command.class);
+    }
+
+    @Override
+    public Object resolveArgument(MethodParameter parameter,
+                                  ModelAndViewContainer mavContainer,
+                                  NativeWebRequest webRequest,
+                                  WebDataBinderFactory binderFactory) throws Exception {
+
+        // 1. Read request body if present
+        // 2. Extract path variables
+        // 3. Inject cross-cutting values:
+        //    - Current user from security context
+        //    - Timestamp (Instant.now())
+        //    - Request correlation ID
+        //    - Tenant context
+        // 4. Construct and return command object
+
+        return constructCommandObject(parameter.getParameterType(), webRequest);
+    }
+}
+
+// Similar @Query annotation for query objects
+@Target(ElementType.PARAMETER)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface Query {
+}
+```
+
+## Request/Response Handling
+
+### Request Mapping Patterns
+```java
+// Path variables as domain types
+@GetMapping("/challenges/{challengeId}/tasks/{taskId}")
+public TaskRepresentation getTask(GetTaskQuery query) {
+    // Query object constructed from path variables
+    return taskQueryHandler.handle(query);
+}
+
+// Query parameters as query objects
+@GetMapping("/challenges")
+public List<ChallengeRepresentation> listChallenges(ListChallengesQuery query) {
+    // Query object constructed from request parameters
+    return challengeQueryHandler.handle(query);
+}
+
+// Request body as command objects - use ResponseEntity for 201 Created
+@PostMapping("/challenges")
+public ResponseEntity<ChallengeRepresentation> createChallenge(@Command CreateChallengeCommand command) {
+    // Command object constructed from request body + injected values
+    Challenge created = createChallengeCommandHandler.handle(command);
+    return ResponseEntity.status(HttpStatus.CREATED).body(assembler.toRepresentation(created));
+}
+```
+
+## Assembler Integration
+
+### Representation Conversion
+```java
+@Component
+@RequiredArgsConstructor
+public class ChallengeRepresentationAssembler {
+
+    public ChallengeRepresentation toRepresentation(Challenge challenge) {
+        ChallengeRepresentation repr = new ChallengeRepresentation();
+        repr.setId(challenge.getId().getValue());
+        repr.setName(challenge.getName());
+        repr.setStatus(challenge.getStatus().name());
+        return repr;
+    }
+
+    public List<ChallengeRepresentation> toRepresentations(List<Challenge> challenges) {
+        return challenges.stream()
+            .map(this::toRepresentation)
+            .collect(Collectors.toList());
+    }
+}
+```
+
+### Status Code Patterns
+```java
+// 200 OK - Return object directly (default)
+return representation;
+
+// 201 Created - Use ResponseEntity for custom status
+return ResponseEntity.status(HttpStatus.CREATED).body(representation);
+
+// 204 No Content - Use ResponseEntity for void operations with custom status
+return ResponseEntity.noContent().build();
+
+// 200 OK with void - Return void (Spring returns 200 automatically)
+// No return statement needed for void methods
+
+// Error scenarios (handled by exception handlers)
+// 400 Bad Request - business rule violations
+// 404 Not Found - resource not found
+// 412 Precondition Failed - state conflicts
+```
+
+## Best Practices
+
+### ✅ Good Patterns
+- Thin controllers with clear delegation
+- Return objects directly for 200 OK responses
+- Use ResponseEntity only for custom status codes
+- Domain types for path variables (ChallengeId instead of Long)
+- Command/Query objects as method parameters
+- Custom @Command/@Query annotations for automatic value injection
+- Proper HTTP method usage
+- Assemblers for domain-to-representation conversion
+- Centralized exception handling
+
+### ❌ Anti-Patterns
+```java
+// DON'T: Unnecessary ResponseEntity for 200 OK
+@GetMapping("/{id}")
+public ResponseEntity<ChallengeRepresentation> getChallenge(@PathVariable Long id) {
+    Challenge challenge = challengeRepository.getOrThrow(ChallengeId.of(id));
+    return ResponseEntity.ok(assembler.toRepresentation(challenge)); // ❌
+}
+
+// DO: Return directly for 200 OK with domain types
+@GetMapping("/{id}")
+public ChallengeRepresentation getChallenge(@PathVariable ChallengeId id) {
+    Challenge challenge = challengeRepository.getOrThrow(id);
+    return assembler.toRepresentation(challenge); // ✅
+}
+
+// DON'T: Manual command construction and business logic in controller
+@PostMapping("/{id}/start")
+public ChallengeRepresentation startChallenge(@PathVariable Long id, @RequestBody StartChallengeRequest request) {
+    // ❌ Manual command construction
+    StartChallengeCommand command = new StartChallengeCommand(
+        ChallengeId.of(id),
+        getCurrentUser().getId(), // ❌ Manual user extraction
+        Instant.now() // ❌ Manual timestamp injection
+    );
+
+    // ❌ Business logic in controller
+    Challenge challenge = challengeRepository.findById(ChallengeId.of(id)).orElse(null);
+    if (challenge == null) {
+        throw new RuntimeException("Not found");
+    }
+    return assembler.toRepresentation(challenge);
+}
+
+// DON'T: Manual exception handling and primitive types
+@GetMapping("/{id}")
+public ChallengeRepresentation getChallenge(@PathVariable Long id) { // ❌ Primitive type
+    try {
+        Challenge challenge = challengeRepository.getOrThrow(ChallengeId.of(id)); // ❌ Manual conversion
+        return assembler.toRepresentation(challenge);
+    } catch (NoSuchChallengeException e) { // ❌ Manual exception handling
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+    }
+}
+```

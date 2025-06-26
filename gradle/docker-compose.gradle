@@ -1,0 +1,126 @@
+// Environment configurations - minimal and essential only
+ext.infraEnvironments = [
+    test: [
+        composeFile: 'docker-compose.test.yml',
+        containerName: 'runner-challenges-test-db',
+        dbUser: 'test_user',
+        dbName: 'runner_challenges_test',
+        cleanVolumes: true
+    ],
+    local: [
+        composeFile: 'docker-compose.local.yml',
+        containerName: 'runner-challenges-local-db',
+        dbUser: 'local_user',
+        dbName: 'runner_challenges',
+        cleanVolumes: false
+    ]
+]
+
+// Helper methods for derived values
+def getTaskGroup(envName) {
+    return envName == 'test' ? 'verification' : 'application'
+}
+
+def getDescription(envName) {
+    return "${envName} infrastructure"
+}
+
+// Parameterized core methods
+def startInfrastructure(envConfig) {
+    exec {
+        commandLine 'docker', 'compose', '-f', envConfig.composeFile, 'up', '-d'
+    }
+}
+
+def waitForInfrastructure(envConfig) {
+    def maxAttempts = 30
+    def attempt = 1
+    def ready = false
+
+    while (!ready && attempt <= maxAttempts) {
+        println "Waiting for ${envConfig.dbName} infrastructure to be ready (attempt ${attempt}/${maxAttempts})..."
+        def result = exec {
+            commandLine 'docker', 'exec', envConfig.containerName, 'pg_isready', '-U', envConfig.dbUser, '-d', envConfig.dbName
+            ignoreExitValue = true
+        }
+        ready = result.exitValue == 0
+        if (!ready) {
+            sleep(1000)
+        }
+        attempt++
+    }
+
+    if (!ready) {
+        throw new GradleException("${envConfig.dbName} infrastructure failed to become ready after ${maxAttempts} attempts")
+    }
+}
+
+def stopInfrastructure(envConfig) {
+    def downCommand = ['docker', 'compose', '-f', envConfig.composeFile, 'down']
+    if (envConfig.cleanVolumes) {
+        downCommand.add('--volumes')
+    }
+    exec {
+        commandLine downCommand
+    }
+}
+
+// Wrapper tasks maintaining current familiar names
+tasks.register('startTestInfra') {
+    group = getTaskGroup('test')
+    description = "Starts the ${getDescription('test')}"
+    doLast {
+        startInfrastructure(infraEnvironments.test)
+    }
+}
+
+tasks.register('waitForTestInfra') {
+    group = getTaskGroup('test')
+    description = "Waits for ${getDescription('test')} to be ready"
+    doLast {
+        waitForInfrastructure(infraEnvironments.test)
+    }
+}
+
+tasks.register('stopTestInfra') {
+    group = getTaskGroup('test')
+    description = "Stops ${getDescription('test')} and removes volumes"
+    doLast {
+        stopInfrastructure(infraEnvironments.test)
+    }
+}
+
+tasks.register('startLocalInfra') {
+    group = getTaskGroup('local')
+    description = "Starts the ${getDescription('local')}"
+    doLast {
+        startInfrastructure(infraEnvironments.local)
+    }
+}
+
+tasks.register('waitForLocalInfra') {
+    group = getTaskGroup('local')
+    description = "Waits for ${getDescription('local')} to be ready"
+    doLast {
+        waitForInfrastructure(infraEnvironments.local)
+    }
+}
+
+tasks.register('stopLocalInfra') {
+    group = getTaskGroup('local')
+    description = "Stops ${getDescription('local')} while preserving volumes"
+    doLast {
+        stopInfrastructure(infraEnvironments.local)
+    }
+}
+
+tasks.register('cleanLocalInfra') {
+    group = getTaskGroup('local')
+    description = "Stops ${getDescription('local')} and removes all volumes"
+    doLast {
+        // Override cleanVolumes for this specific task
+        def cleanConfig = infraEnvironments.local.clone()
+        cleanConfig.cleanVolumes = true
+        stopInfrastructure(cleanConfig)
+    }
+}

@@ -1,0 +1,237 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+
+# Domain Model: DDD Implementation Patterns
+
+## Purpose
+
+This rule guides domain model implementation following domain-driven design principles.
+Focus on rich domain objects with proper encapsulation.
+
+## Core Design Principles
+
+Refer to @Make-it-work-then-make-it-good.mdc
+
+### Entity
+
+- **Abstractions**:
+    - **Identity**: Each entity has a unique identity using dedicated ID value objects
+    - **Type Safety**: Use value objects instead of primitives to prevent primitive obsession
+- **Implementations**:
+    - **Encapsulation**: Rich domain objects with behavior, not anemic data containers
+        - **No God Class**: Only encapsulate behavior based on fields hold by the entity
+            - Delegate to Domain Services if the state change involves multiple entities
+            - Delegate to Domain Services if the state change involves external dependencies
+            - Delegate to Specifications if the business rule validation involves multiple entities
+            - Delegate to Specifications if the business rule validation involves external dependencies
+    - **Equals and HashCode**: Prefer @EqualsAndHashCode(of="{ID field}")
+    - **To String**: Prefer @ToString(of="{ID field}")
+
+### Value Object
+
+- **Abstractions**:
+    - **Type Safety**: Use value objects instead of primitives to prevent primitive obsession
+- **Implementations**:
+    - **Immutable**: Value objects should be immutable once created
+        - Getter/Setter is allowed for creation or framework
+        - Do not change the internal state by using setters once created
+    - **Self-Validating**: Value objects validate their own invariants
+    - **Equals and HashCode**: Prefer @EqualsAndHashCode()
+    - **To String**: Prefer @ToString()
+
+### Aggregate
+
+- **Abstractions**:
+    - **Root Entity**: Only access aggregate members through the aggregate root
+    - **Small Aggregates**: Keep aggregates small and focused
+    - **Repository**: Root Entity has its own repository, refer to @repositories.mdc
+- **Implementations**:
+    - **Consistency Boundaries**: Aggregates define invariants boundaries
+
+### Package Organization
+
+- **Abstractions**:
+    - **Package Organization**: Organize entities by domain concepts with behavioral sub-packages
+        - Core entities at domain package root (e.g., `Challenge.java`, `ChallengeRepository.java`)
+        - Behavioral sub-packages by business capability:
+
+### JPA Integration
+
+- **Implementations**:
+    - Use converters and proper annotations for persistence
+    - For rich type ID, prefer @Embedded and @Embeddable
+    - Prefer @Version for optimistic locking
+    - Prefer @CreatedDate and @LastModifiedDate for entities
+
+### Test Data Builders
+
+- see @test-data-builders.mdc
+
+## Core Patterns
+
+### Basic Entity Structure
+
+```java
+package com.example.domain.order;
+
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
+
+@Setter
+@Getter
+@EqualsAndHashCode(of = "id")
+@ToString(of = "id")
+public class Order {
+    private OrderId id;
+    private OrderStatus status;
+    private OrderAmount amount;
+    private UserId customerId;
+    private Instant createdAt;
+
+    public void confirm() {
+        if (status != OrderStatus.PENDING) {
+            throw new CannotConfirmOrderException(id, status);
+        }
+        this.status = OrderStatus.CONFIRMED;
+    }
+
+    public boolean isConfirmed() {
+        return status == OrderStatus.CONFIRMED;
+    }
+}
+```
+
+### Basic Value Objects
+
+```java
+package com.example.domain.order;
+
+import lombok.Value;
+
+@Data
+public class OrderId {
+    private String value;
+
+    public static OrderId of(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            throw new IllegalArgumentException("OrderId cannot be null or empty");
+        }
+        return new OrderId(value);
+    }
+
+}
+```
+
+### Status Enums
+
+```java
+public enum OrderStatus {
+    PENDING("Pending"),
+    CONFIRMED("Confirmed"),
+    SHIPPED("Shipped"),
+    DELIVERED("Delivered"),
+    CANCELLED("Cancelled");
+
+    private final String displayName;
+
+    OrderStatus(String displayName) {
+        this.displayName = displayName;
+    }
+
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    public boolean canTransitionTo(OrderStatus newStatus) {
+        return switch (this) {
+            case PENDING -> newStatus == CONFIRMED || newStatus == CANCELLED;
+            case CONFIRMED -> newStatus == SHIPPED || newStatus == CANCELLED;
+            case SHIPPED -> newStatus == DELIVERED;
+            case DELIVERED, CANCELLED -> false;
+        };
+    }
+}
+```
+
+### Entity with JPA Annotations
+
+```java
+
+@Entity
+@Table(name = "orders")
+@Getter
+@EqualsAndHashCode(of = "id")
+@ToString(of = "id")
+@NoArgsConstructor(access = AccessLevel.PROTECTED) // For JPA
+public class Order {
+    @EmbeddedId
+    @AttributeOverride(name = "value", column = @Column(name = "id"))
+    private OrderId id;
+
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "value", column = @Column(name = "amount")),
+            @AttributeOverride(name = "currency", column = @Column(name = "currency"))
+    })
+    private OrderAmount amount;
+
+    @Enumerated(EnumType.STRING)
+    private OrderStatus status;
+
+    @Convert(converter = UserIdConverter.class)
+    @Column(name = "customer_id")
+    private UserId customerId;
+
+    @Column(name = "created_at")
+    private Instant createdAt;
+
+    // Domain constructor
+    public Order(OrderId id, UserId customerId, OrderAmount amount) {
+        this.id = id;
+        this.customerId = customerId;
+        this.amount = amount;
+        this.status = OrderStatus.PENDING;
+        this.createdAt = Instant.now();
+    }
+
+    // Domain behavior methods...
+}
+```
+
+### JPA Converters for Value Objects
+
+```java
+
+@Converter(autoApply = true)
+public class OrderIdConverter implements AttributeConverter<OrderId, String> {
+
+    @Override
+    public String convertToDatabaseColumn(OrderId attribute) {
+        return attribute == null ? null : attribute.getValue();
+    }
+
+    @Override
+    public OrderId convertToEntityAttribute(String dbData) {
+        return dbData == null ? null : OrderId.of(dbData);
+    }
+}
+```
+
+### ❌ Anti-Patterns
+
+```java
+// DON'T: Primitive obsession
+@Entity
+public class Order {
+    private String id; // ❌ Should be OrderId
+    private double amount; // ❌ Should be OrderAmount
+    private String customerId; // ❌ Should be UserId
+    private String status; // ❌ Should be OrderStatus enum
+
+}
+
+```

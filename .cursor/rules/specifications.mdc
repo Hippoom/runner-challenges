@@ -1,0 +1,467 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+
+# Specification: Domain Business Rules and Constraints
+
+## Purpose
+
+This rule guides specification implementation for encapsulating domain business rules and constraints.
+Focus on creating reusable, testable specifications that can be used for both validation (throwing exceptions) and
+querying (returning boolean results).
+
+## Core Design Principles
+
+Refer to @Make-it-work-then-make-it-good.mdc
+
+### Specifications
+
+- **Abstractions**:
+    - **Clear Naming**: Use descriptive names like `IsAvailableToStart`, `CanBeCompleted`, `MeetsRequirements`
+    - **Location**: Place specifications in the same package of relevant domain models
+    - **Single Responsibility**: Each specification should encapsulate one business rule or constraint
+    - **Dual Interface**:
+        - Support predicate (boolean) where we don't care the cause (usually in queries)
+        - Support validation (exception) where we care the cause (usually in command handling)
+- **Implementations**:
+    - **Testability**: Easy to unit test in isolation
+    - **Composition**: Use composite pattern for complex multi-rule scenarios
+
+## Core Patterns
+
+### Simple Predicate Specification
+
+```java
+package com.example.domain.specification;
+
+import com.example.domain.Order;
+import com.example.domain.User;
+import org.springframework.stereotype.Component;
+
+@Component
+public class OrderIsAvailableToCancel {
+
+    public boolean test(Order order, User user) {
+        // Business rule: Only pending orders can be cancelled by their owner
+        return order.isPending() && order.getCustomerId().equals(user.getId());
+    }
+}
+```
+
+### Validation Specification with Exceptions
+
+```java
+package com.example.domain.specification;
+
+import com.example.domain.Order;
+import com.example.domain.User;
+import com.example.domain.exception.OrderCannotBeCancelledException;
+import org.springframework.stereotype.Component;
+
+@Component
+public class OrderIsAvailableToCancel {
+
+    public void validate(Order order, User user) {
+        if (!order.isPending()) {
+            throw new OrderCannotBeCancelledException(
+                    order.getId(), "Order is not in pending status");
+        }
+
+        if (!order.getCustomerId().equals(user.getId())) {
+            throw new OrderCannotBeCancelledException(
+                    order.getId(), "Order does not belong to user");
+        }
+    }
+
+    public boolean test(Order order, User user) {
+        try {
+            validate(order, user);
+            return true;
+        } catch (OrderCannotBeCancelledException e) {
+            return false;
+        }
+    }
+}
+```
+
+### Interface-Based Specification
+
+```java
+package com.example.domain.specification;
+
+import com.example.domain.Order;
+import com.example.domain.User;
+
+public interface OrderAvailabilitySpecification {
+    boolean test(Order order, User user);
+
+    void validate(Order order, User user);
+}
+
+@Component("orderCancellationSpec")
+public class OrderCancellationSpecification implements OrderAvailabilitySpecification {
+
+    @Override
+    public boolean test(Order order, User user) {
+        return order.isPending() &&
+                order.getCustomerId().equals(user.getId()) &&
+                order.getCreatedAt().isAfter(Instant.now().minus(Duration.ofHours(24)));
+    }
+
+    @Override
+    public void validate(Order order, User user) {
+        if (!test(order, user)) {
+            throw new OrderCannotBeCancelledException(order.getId());
+        }
+    }
+}
+```
+
+## Advanced Specification Patterns
+
+### Composite Specification
+
+```java
+package com.example.domain.specification;
+
+import com.example.domain.Order;
+import com.example.domain.User;
+import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Primary;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+
+@Primary
+@Component
+@RequiredArgsConstructor
+public class OrderAvailabilityComposite implements OrderAvailabilitySpecification {
+    private final List<OrderAvailabilitySpecification> specifications;
+
+    @Override
+    public boolean test(Order order, User user) {
+        return specifications.stream()
+                .allMatch(spec -> spec.test(order, user));
+    }
+
+    @Override
+    public void validate(Order order, User user) {
+        specifications.forEach(spec -> spec.validate(order, user));
+    }
+}
+```
+
+### Criterion-Based Specification
+
+```java
+package com.example.domain.specification;
+
+import com.example.domain.Challenge;
+import com.example.domain.UserActivity;
+
+public interface CompletionCriterion {
+    /**
+     * Check if this criterion applies to the given challenge.
+     */
+    boolean appliesTo(Challenge challenge);
+
+    /**
+     * Check if this criterion is met by the user activity.
+     */
+    boolean isMet(Challenge challenge, UserActivity activity);
+}
+
+@Component
+public class MinimumDistanceCriterion implements CompletionCriterion {
+
+    @Override
+    public boolean appliesTo(Challenge challenge) {
+        return challenge.getMinimumDistance() != null &&
+                challenge.getMinimumDistance() > 0;
+    }
+
+    @Override
+    public boolean isMet(Challenge challenge, UserActivity activity) {
+        if (!appliesTo(challenge)) {
+            return true; // Criterion doesn't apply, so it's met
+        }
+
+        return activity.getDistance() >= challenge.getMinimumDistance();
+    }
+}
+
+@Component
+@RequiredArgsConstructor
+public class ChallengeCanBeCompleted {
+    private final List<CompletionCriterion> criteria;
+
+    public boolean by(Challenge challenge, UserActivity activity) {
+        if (activity == null) {
+            return false;
+        }
+
+        return criteria.stream()
+                .filter(criterion -> criterion.appliesTo(challenge))
+                .allMatch(criterion -> criterion.isMet(challenge, activity));
+    }
+}
+```
+
+### Configuration-Driven Specification
+
+```java
+package com.example.config;
+
+import com.example.domain.specification.OrderAvailabilitySpecification;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import java.util.List;
+
+@Configuration
+public class SpecificationConfiguration {
+
+    @Bean
+    public List<OrderAvailabilitySpecification> orderAvailabilitySpecs(
+            @Qualifier("orderStatusSpec") OrderAvailabilitySpecification statusSpec,
+            @Qualifier("orderOwnershipSpec") OrderAvailabilitySpecification ownershipSpec,
+            @Qualifier("orderTimeWindowSpec") OrderAvailabilitySpecification timeWindowSpec
+    ) {
+        return List.of(statusSpec, ownershipSpec, timeWindowSpec);
+    }
+}
+```
+
+## Specification Usage Examples
+
+### In Command Handlers (Validation Mode)
+
+```java
+
+@Component
+@RequiredArgsConstructor
+public class CancelOrderCommandHandler {
+    private final OrderRepository orderRepository;
+    private final OrderAvailabilitySpecification orderCancellationSpec;
+
+    @Transactional
+    public void handle(CancelOrderCommand command) {
+        Order order = orderRepository.getOrThrow(command.getOrderId());
+        User user = getCurrentUser();
+
+        // Throws exception if validation fails
+        orderCancellationSpec.validate(order, user);
+
+        order.cancel();
+        orderRepository.save(order);
+    }
+}
+```
+
+### In Query Handlers (Predicate Mode)
+
+```java
+
+@Component
+@RequiredArgsConstructor
+public class OrderQueryHandler {
+    private final OrderRepository orderRepository;
+    private final OrderAvailabilitySpecification orderCancellationSpec;
+
+    public List<OrderSummary> getCancellableOrders(UserId userId) {
+        User user = userRepository.getOrThrow(userId);
+
+        return orderRepository.findByCustomerId(userId).stream()
+                .filter(order -> orderCancellationSpec.test(order, user))
+                .map(this::toSummary)
+                .collect(Collectors.toList());
+    }
+}
+```
+
+### In REST Controllers (UI State)
+
+```java
+
+@RestController
+@RequiredArgsConstructor
+public class OrderController {
+    private final OrderQueryHandler queryHandler;
+    private final OrderAvailabilitySpecification orderCancellationSpec;
+
+    @GetMapping("/orders/{orderId}")
+    public OrderRepresentation getOrder(@PathVariable OrderId orderId, @CurrentUser User user) {
+        Order order = orderRepository.getOrThrow(orderId);
+
+        return OrderRepresentation.builder()
+                .id(order.getId())
+                .status(order.getStatus())
+                .amount(order.getAmount())
+                .canBeCancelled(orderCancellationSpec.test(order, user))
+                .build();
+    }
+}
+```
+
+### Complex Business Rules
+
+```java
+
+@Component
+@RequiredArgsConstructor
+public class LoanEligibilitySpecification {
+    private final CreditScoreService creditScoreService;
+    private final IncomeVerificationService incomeService;
+
+    public boolean test(LoanApplication application, User user) {
+        // Multiple business rules combined
+        return hasMinimumCreditScore(user) &&
+                hasStableIncome(application, user) &&
+                debtToIncomeRatioAcceptable(application, user) &&
+                meetsCollateralRequirements(application);
+    }
+
+    public void validate(LoanApplication application, User user) {
+        if (!hasMinimumCreditScore(user)) {
+            throw new LoanNotEligibleException("Credit score below minimum threshold");
+        }
+
+        if (!hasStableIncome(application, user)) {
+            throw new LoanNotEligibleException("Income verification failed");
+        }
+
+        if (!debtToIncomeRatioAcceptable(application, user)) {
+            throw new LoanNotEligibleException("Debt-to-income ratio too high");
+        }
+
+        if (!meetsCollateralRequirements(application)) {
+            throw new LoanNotEligibleException("Insufficient collateral");
+        }
+    }
+
+    private boolean hasMinimumCreditScore(User user) {
+        return creditScoreService.getScore(user.getId()) >= 650;
+    }
+
+    // ... other private methods
+}
+```
+
+## Testing Specifications
+
+### Unit Test Examples
+
+```java
+
+@RunWith(MockitoJUnitRunner.class)
+public class OrderCancellationSpecificationTest {
+
+    @Mock
+    private TimeService timeService;
+
+    private OrderCancellationSpecification specification;
+    private User user;
+    private Order order;
+
+    @Before
+    public void setUp() {
+        specification = new OrderCancellationSpecification(timeService);
+        user = aUser().build();
+        order = anOrder().withCustomerId(user.getId()).pending().build();
+    }
+
+    @Test
+    public void shouldAllowCancellationWhenOrderIsPendingAndBelongsToUser() {
+        // Given
+        when(timeService.now()).thenReturn(Instant.now());
+
+        // When & Then
+        assertThat(specification.test(order, user)).isTrue();
+        assertThatNoException().isThrownBy(() -> specification.validate(order, user));
+    }
+
+    @Test
+    public void shouldRejectCancellationWhenOrderIsNotPending() {
+        // Given
+        order.confirm();
+
+        // When & Then
+        assertThat(specification.test(order, user)).isFalse();
+        assertThatThrownBy(() -> specification.validate(order, user))
+                .isInstanceOf(OrderCannotBeCancelledException.class);
+    }
+
+    @Test
+    public void shouldRejectCancellationWhenOrderDoesNotBelongToUser() {
+        // Given
+        User otherUser = aUser().withId("other-user").build();
+
+        // When & Then
+        assertThat(specification.test(order, otherUser)).isFalse();
+        assertThatThrownBy(() -> specification.validate(order, otherUser))
+                .isInstanceOf(OrderCannotBeCancelledException.class);
+    }
+}
+```
+
+### ❌ Anti-Patterns
+
+```java
+// DON'T: Unclear specification names
+public class OrderSpec { // ❌ What does this specification do?
+    public boolean check(Order order) { // ❌ Check what?
+        return order.getStatus().equals("PENDING");
+    }
+}
+
+// DON'T: Mixed responsibilities in one specification
+public class OrderBusinessRules { // ❌ Too broad, multiple responsibilities
+    public boolean canCancel(Order order, User user) {
+        // ❌ Multiple unrelated business rules mixed together
+        return order.isPending() &&
+                order.getCustomerId().equals(user.getId()) &&
+                user.hasPermission("CANCEL_ORDERS") &&
+                order.getAmount().isLessThan(Money.of(1000)) &&
+                isWithinBusinessHours();
+    }
+}
+
+// DON'T: Hard-coded business rules in domain entities
+public class Order {
+    public boolean canBeCancelled(User user) { // ❌ Business logic in entity
+        if (!this.isPending()) return false;
+        if (!this.customerId.equals(user.getId())) return false;
+        if (this.amount.isGreaterThan(Money.of(500))) return false;
+        return true;
+    }
+}
+
+// DON'T: Specifications without proper error handling
+public class OrderCancellationSpec {
+    public void validate(Order order, User user) {
+        if (!order.isPending()) {
+            throw new RuntimeException("Cannot cancel"); // ❌ Generic exception
+        }
+    }
+}
+
+// DON'T: Specifications with side effects
+public class OrderValidationSpec {
+    public boolean test(Order order, User user) {
+        auditService.logAccess(user, order); // ❌ Side effect in specification
+        return order.isPending();
+    }
+}
+
+// DON'T: Tightly coupled specifications
+public class OrderCancellationSpec {
+    public boolean test(Order order, User user) {
+        // ❌ Direct database access instead of using repositories
+        String sql = "SELECT COUNT(*) FROM orders WHERE customer_id = ?";
+        // ... database logic
+    }
+}
+```

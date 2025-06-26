@@ -1,0 +1,122 @@
+openapi: 3.0.0
+info:
+  title: Runner Challenges API
+  version: 1.0.0
+  description: API for managing runner challenges
+
+components:
+  securitySchemes:
+    sessionToken:
+      type: apiKey
+      in: header
+      name: X-Session-Token
+      description: Session token for user authentication
+
+  schemas:
+    MyChallengesRepresentation:
+      type: object
+      properties:
+        _embedded:
+          type: object
+          properties:
+            challenges:
+              type: array
+              items:
+                $ref: '#/components/schemas/MyChallengeRepresentation'
+        _links:  # HATEOAS links for the collection
+          type: object
+          properties:
+            self:
+              type: object
+              properties:
+                href:
+                  type: string
+                  example: /api/my/challenges
+              required:
+                - href
+
+    MyChallengeRepresentation:
+      type: object
+      properties:
+        number:
+          type: integer
+          format: int32
+        is_completed:
+          type: boolean
+        is_available:
+          type: boolean
+        is_started:
+          type: boolean
+        _links:  # HATEOAS links for this specific challenge
+          type: object
+          properties:
+            start:
+              type: object
+              description: Link to start the challenge, available if the challenge is not yet started.
+              properties:
+                href:
+                  type: string
+                  example: /api/my/challenges/{number}/start
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Error code for programmatic handling
+        message:
+          type: string
+          description: Human-readable error message
+
+paths:
+  /api/my/challenges:
+    get:
+      summary: List my challenges
+      security:
+        - sessionToken: []
+      responses:
+        '200':
+          description: A list of challenges
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/MyChallengesRepresentation'
+        '401':
+          description: Invalid or missing session token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/my/challenges/{number}/start:
+    post:
+      summary: Start a challenge
+      security:
+        - sessionToken: []
+      parameters:
+        - name: number
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: Challenge started successfully
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/MyChallengeRepresentation'
+        '401':
+          description: Invalid or missing session token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '412':
+          description: Challenge is not available for starting
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
