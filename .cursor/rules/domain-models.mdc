@@ -42,7 +42,7 @@ Refer to @Make-it-work-then-make-it-good.mdc
     - **Equals and HashCode**: Prefer @EqualsAndHashCode()
     - **To String**: Prefer @ToString()
 
-### 3. Aggregate
+### Aggregate
 
 - **Abstractions**:
     - **Root Entity**: Only access aggregate members through the aggregate root
@@ -50,6 +50,13 @@ Refer to @Make-it-work-then-make-it-good.mdc
     - **Repository**: Root Entity has its own repository, refer to @repositories.mdc
 - **Implementations**:
     - **Consistency Boundaries**: Aggregates define invariants boundaries
+
+### Package Organization
+
+- **Abstractions**:
+    - **Package Organization**: Organize entities by domain concepts with behavioral sub-packages
+        - Core entities at domain package root (e.g., `Challenge.java`, `ChallengeRepository.java`)
+        - Behavioral sub-packages by business capability:
 
 ### JPA Integration
 
