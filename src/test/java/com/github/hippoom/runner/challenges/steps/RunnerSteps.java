@@ -30,6 +30,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class RunnerSteps {
 
+    // Constants
+    private static final String CHALLENGES_ENDPOINT = "/api/my/challenges";
+    private static final String SESSION_TOKEN_HEADER = "X-Session-Token";
+    private static final double ASSERTION_DELTA = 0.01;
+
     @LocalServerPort
     private int mainPort;
 
@@ -61,13 +66,44 @@ public class RunnerSteps {
         testSessionTokenService.registerSession(currentSessionToken, currentUserId);
     }
 
+    /**
+     * Creates HTTP headers with authentication token for API requests.
+     */
+    private HttpHeaders createAuthenticatedHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set(SESSION_TOKEN_HEADER, currentSessionToken);
+        return headers;
+    }
+
+    /**
+     * Makes HTTP GET request to challenges endpoint and returns the response.
+     */
+    private ResponseEntity<String> getChallengesResponse() {
+        String challengesUrl = "http://localhost:" + mainPort + CHALLENGES_ENDPOINT;
+        HttpEntity<String> entity = new HttpEntity<>(createAuthenticatedHeaders());
+        return restTemplate.exchange(challengesUrl, HttpMethod.GET, entity, String.class);
+    }
+
+    /**
+     * Finds a specific challenge by number in the JSON response.
+     * @param responseJson The parsed JSON response containing challenges
+     * @param challengeNumber The challenge number to find
+     * @return The JsonNode representing the challenge, or null if not found
+     */
+    private JsonNode findChallengeInResponse(JsonNode responseJson, int challengeNumber) throws Exception {
+        JsonNode challengesArray = responseJson.get("_embedded").get("challenges");
+        
+        for (JsonNode challenge : challengesArray) {
+            if (challenge.get("number").asInt() == challengeNumber) {
+                return challenge;
+            }
+        }
+        return null;
+    }
+
     @When("I request to list my challenges")
     public void iRequestToListMyChallenges() {
-        String challengesUrl = "http://localhost:" + mainPort + "/api/my/challenges";
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("X-Session-Token", currentSessionToken);
-        HttpEntity<String> entity = new HttpEntity<>(headers);
-        challengesResponse = restTemplate.exchange(challengesUrl, HttpMethod.GET, entity, String.class);
+        challengesResponse = getChallengesResponse();
     }
 
         @Then("I should see all challenges sorted by number")
@@ -94,10 +130,8 @@ public class RunnerSteps {
     @When("I select the challenge {int} to start")
     public void iSelectTheChallengeToStart(int challengeNumber) {
         this.startedChallengeNumber = challengeNumber;
-        String startChallengeUrl = "http://localhost:" + mainPort + "/api/my/challenges/" + challengeNumber + "/start";
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("X-Session-Token", currentSessionToken);
-        HttpEntity<String> entity = new HttpEntity<>(headers);
+        String startChallengeUrl = "http://localhost:" + mainPort + CHALLENGES_ENDPOINT + "/" + challengeNumber + "/start";
+        HttpEntity<String> entity = new HttpEntity<>(createAuthenticatedHeaders());
         startChallengeResponse = restTemplate.exchange(startChallengeUrl, HttpMethod.POST, entity, String.class);
     }
 
@@ -144,27 +178,13 @@ public class RunnerSteps {
 
     @Then("the challenge should be marked as completed")
     public void theChallengeShouldBeMarkedAsCompleted() throws Exception {
-        // Get the challenge list to check if the started challenge is completed
-        String challengesUrl = "http://localhost:" + mainPort + "/api/my/challenges";
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("X-Session-Token", currentSessionToken);
-        HttpEntity<String> entity = new HttpEntity<>(headers);
-        ResponseEntity<String> response = restTemplate.exchange(challengesUrl, HttpMethod.GET, entity, String.class);
+        ResponseEntity<String> response = getChallengesResponse();
 
         assertEquals(HttpStatus.OK, response.getStatusCode(),
                 "Challenges endpoint should return HTTP 200");
 
         JsonNode responseJson = objectMapper.readTree(response.getBody());
-        JsonNode challengesArray = responseJson.get("_embedded").get("challenges");
-        
-        // Find the specific challenge that was started
-        JsonNode startedChallenge = null;
-        for (JsonNode challenge : challengesArray) {
-            if (challenge.get("number").asInt() == startedChallengeNumber) {
-                startedChallenge = challenge;
-                break;
-            }
-        }
+        JsonNode startedChallenge = findChallengeInResponse(responseJson, startedChallengeNumber);
         
         assertNotNull(startedChallenge, 
                 "Challenge " + startedChallengeNumber + " should be found in the response");
@@ -180,27 +200,13 @@ public class RunnerSteps {
 
     @Given("the challenge requires a minimum distance of {double} km")
     public void theChallengeRequiresAMinimumDistanceOfKm(double expectedDistance) throws Exception {
-        // Make HTTP request to get challenge list
-        String challengesUrl = "http://localhost:" + mainPort + "/api/my/challenges";
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("X-Session-Token", currentSessionToken);
-        HttpEntity<String> entity = new HttpEntity<>(headers);
-        ResponseEntity<String> response = restTemplate.exchange(challengesUrl, HttpMethod.GET, entity, String.class);
+        ResponseEntity<String> response = getChallengesResponse();
 
         assertEquals(HttpStatus.OK, response.getStatusCode(),
                 "Challenges endpoint should return HTTP 200");
 
-        // Parse JSON response to find the challenge and validate its minimum distance
         JsonNode responseJson = objectMapper.readTree(response.getBody());
-        JsonNode challengesArray = responseJson.get("_embedded").get("challenges");
-        
-        JsonNode targetChallenge = null;
-        for (JsonNode challenge : challengesArray) {
-            if (challenge.get("number").asInt() == startedChallengeNumber) {
-                targetChallenge = challenge;
-                break;
-            }
-        }
+        JsonNode targetChallenge = findChallengeInResponse(responseJson, startedChallengeNumber);
         
         assertNotNull(targetChallenge, 
                 "Challenge " + startedChallengeNumber + " should be found in the response");
@@ -209,33 +215,19 @@ public class RunnerSteps {
         assertNotNull(minimumDistanceNode, 
                 "Challenge " + startedChallengeNumber + " should have minimum_distance field");
         
-        assertEquals(expectedDistance, minimumDistanceNode.asDouble(), 0.01,
+        assertEquals(expectedDistance, minimumDistanceNode.asDouble(), ASSERTION_DELTA,
                 "Challenge " + startedChallengeNumber + " minimum distance should be " + expectedDistance + " km");
     }
 
     @Given("the challenge requires a minimum pace of {double} minutes per km")
     public void theChallengeRequiresAMinimumPaceOfMinutesPerKm(double expectedPace) throws Exception {
-        // Make HTTP request to get challenge list
-        String challengesUrl = "http://localhost:" + mainPort + "/api/my/challenges";
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("X-Session-Token", currentSessionToken);
-        HttpEntity<String> entity = new HttpEntity<>(headers);
-        ResponseEntity<String> response = restTemplate.exchange(challengesUrl, HttpMethod.GET, entity, String.class);
+        ResponseEntity<String> response = getChallengesResponse();
 
         assertEquals(HttpStatus.OK, response.getStatusCode(),
                 "Challenges endpoint should return HTTP 200");
 
-        // Parse JSON response to find the challenge and validate its minimum pace
         JsonNode responseJson = objectMapper.readTree(response.getBody());
-        JsonNode challengesArray = responseJson.get("_embedded").get("challenges");
-        
-        JsonNode targetChallenge = null;
-        for (JsonNode challenge : challengesArray) {
-            if (challenge.get("number").asInt() == startedChallengeNumber) {
-                targetChallenge = challenge;
-                break;
-            }
-        }
+        JsonNode targetChallenge = findChallengeInResponse(responseJson, startedChallengeNumber);
         
         assertNotNull(targetChallenge, 
                 "Challenge " + startedChallengeNumber + " should be found in the response");
@@ -244,33 +236,19 @@ public class RunnerSteps {
         assertNotNull(minimumPaceNode, 
                 "Challenge " + startedChallengeNumber + " should have minimum_pace field");
         
-        assertEquals(expectedPace, minimumPaceNode.asDouble(), 0.01,
+        assertEquals(expectedPace, minimumPaceNode.asDouble(), ASSERTION_DELTA,
                 "Challenge " + startedChallengeNumber + " minimum pace should be " + expectedPace + " minutes per km");
     }
 
     @Given("the challenge does not require any completion criteria")
     public void theChallengeDoesNotRequireAnyCompletionCriteria() throws Exception {
-        // Make HTTP request to get challenge list
-        String challengesUrl = "http://localhost:" + mainPort + "/api/my/challenges";
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("X-Session-Token", currentSessionToken);
-        HttpEntity<String> entity = new HttpEntity<>(headers);
-        ResponseEntity<String> response = restTemplate.exchange(challengesUrl, HttpMethod.GET, entity, String.class);
+        ResponseEntity<String> response = getChallengesResponse();
 
         assertEquals(HttpStatus.OK, response.getStatusCode(),
                 "Challenges endpoint should return HTTP 200");
 
-        // Parse JSON response to find the challenge and validate it has no completion criteria
         JsonNode responseJson = objectMapper.readTree(response.getBody());
-        JsonNode challengesArray = responseJson.get("_embedded").get("challenges");
-        
-        JsonNode targetChallenge = null;
-        for (JsonNode challenge : challengesArray) {
-            if (challenge.get("number").asInt() == startedChallengeNumber) {
-                targetChallenge = challenge;
-                break;
-            }
-        }
+        JsonNode targetChallenge = findChallengeInResponse(responseJson, startedChallengeNumber);
         
         assertNotNull(targetChallenge, 
                 "Challenge " + startedChallengeNumber + " should be found in the response");
