@@ -1,6 +1,7 @@
 package com.github.hippoom.runner.challenges.steps;
 
 import io.cucumber.java.Before;
+import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -175,5 +176,19 @@ public class RunnerSteps {
     public void iShouldBeToldThatTheChallengeIsUnavailable() {
         assertEquals(HttpStatus.PRECONDITION_FAILED, startChallengeResponse.getStatusCode(),
                 "Start challenge endpoint should return HTTP 412 for unavailable challenge");
+    }
+    
+    @Given("the challenge requires a minimum distance of {double} km")
+    public void theChallengeRequiresAMinimumDistanceOfKm(double minimumDistance) {
+        // This step is declarative - it documents the challenge requirements
+        // The actual configuration is handled in application-test.properties
+        // This step serves as living documentation of the test expectations
+    }
+    
+    @Given("the challenge requires a minimum pace of {double} minutes per km")
+    public void theChallengeRequiresAMinimumPaceOfMinutesPerKm(double minimumPace) {
+        // This step is declarative - it documents the challenge requirements  
+        // The actual configuration is handled in application-test.properties
+        // This step serves as living documentation of the test expectations
     }
 } 
