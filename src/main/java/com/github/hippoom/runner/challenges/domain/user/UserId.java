@@ -1,4 +1,4 @@
-package com.github.hippoom.runner.challenges.domain.model.user;
+package com.github.hippoom.runner.challenges.domain.user;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;

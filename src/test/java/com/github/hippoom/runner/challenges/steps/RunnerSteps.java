@@ -14,16 +14,16 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import com.github.hippoom.runner.challenges.domain.model.activity.UserActivity;
-import com.github.hippoom.runner.challenges.domain.model.user.UserId;
+import com.github.hippoom.runner.challenges.domain.activity.UserActivity;
+import com.github.hippoom.runner.challenges.domain.user.UserId;
 import com.github.hippoom.runner.challenges.http.support.TestSessionTokenService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.UUID;
 
-import static com.github.hippoom.runner.challenges.domain.model.activity.UserActivityTestDataBuilder.aUserActivity;
-import static com.github.hippoom.runner.challenges.domain.model.user.UserIdTestDataBuilder.aUserId;
+import static com.github.hippoom.runner.challenges.domain.activity.UserActivityTestDataBuilder.aUserActivity;
+import static com.github.hippoom.runner.challenges.domain.user.UserIdTestDataBuilder.aUserId;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNotNull;

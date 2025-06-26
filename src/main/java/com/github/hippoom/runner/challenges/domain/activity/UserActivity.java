@@ -1,6 +1,6 @@
-package com.github.hippoom.runner.challenges.domain.model.activity;
+package com.github.hippoom.runner.challenges.domain.activity;
 
-import com.github.hippoom.runner.challenges.domain.model.user.UserId;
+import com.github.hippoom.runner.challenges.domain.user.UserId;
 import lombok.Data;
 
 import java.time.Instant;

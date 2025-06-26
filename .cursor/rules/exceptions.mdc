@@ -32,7 +32,7 @@ Focus on meaningful, context-rich exceptions that support business logic and pro
 ### Simple Exception
 
 ```java
-package com.example.domain.model.challenge;
+package com.example.domain.challenge;
 
 public class NoSuchChallengeException extends RuntimeException {
 
@@ -45,7 +45,7 @@ public class NoSuchChallengeException extends RuntimeException {
 ### Multiple Failure Scenarios
 
 ```java
-package com.example.domain.model.challenge;
+package com.example.domain.challenge;
 
 public class CannotStartChallengeException extends RuntimeException {
 

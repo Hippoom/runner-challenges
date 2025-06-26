@@ -1,4 +1,4 @@
-package com.github.hippoom.runner.challenges.domain.model.challenge;
+package com.github.hippoom.runner.challenges.domain.challenge;
 
 import org.springframework.boot.context.properties.ConfigurationPropertiesBinding;
 import org.springframework.core.convert.converter.Converter;

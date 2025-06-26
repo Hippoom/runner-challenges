@@ -1,6 +1,6 @@
-package com.github.hippoom.runner.challenges.domain.model.challenge;
+package com.github.hippoom.runner.challenges.domain.challenge;
 
-import com.github.hippoom.runner.challenges.domain.model.user.UserId;
+import com.github.hippoom.runner.challenges.domain.user.UserId;
 
 public interface ChallengeAvailabilitySpecification {
     boolean test(Challenge challenge, UserId userId);

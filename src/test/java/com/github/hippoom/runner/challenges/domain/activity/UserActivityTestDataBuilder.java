@@ -1,10 +1,10 @@
-package com.github.hippoom.runner.challenges.domain.model.activity;
+package com.github.hippoom.runner.challenges.domain.activity;
 
-import com.github.hippoom.runner.challenges.domain.model.user.UserId;
+import com.github.hippoom.runner.challenges.domain.user.UserId;
 
 import java.time.Instant;
 
-import static com.github.hippoom.runner.challenges.domain.model.user.UserIdTestDataBuilder.aUserId;
+import static com.github.hippoom.runner.challenges.domain.user.UserIdTestDataBuilder.aUserId;
 
 public class UserActivityTestDataBuilder {
     private UserActivity target = new UserActivity();

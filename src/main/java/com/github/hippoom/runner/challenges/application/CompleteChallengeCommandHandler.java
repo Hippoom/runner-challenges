@@ -1,13 +1,13 @@
 package com.github.hippoom.runner.challenges.application;
 
-import com.github.hippoom.runner.challenges.domain.model.activity.UserActivity;
-import com.github.hippoom.runner.challenges.domain.model.challenge.Challenge;
-import com.github.hippoom.runner.challenges.domain.model.challenge.ChallengeCompletionSpecification;
-import com.github.hippoom.runner.challenges.domain.model.challenge.ChallengeRepository;
-import com.github.hippoom.runner.challenges.domain.model.challenge.CompletedChallenge;
-import com.github.hippoom.runner.challenges.domain.model.challenge.CompletedChallengeRepository;
-import com.github.hippoom.runner.challenges.domain.model.challenge.StartedChallenge;
-import com.github.hippoom.runner.challenges.domain.model.challenge.StartedChallengeRepository;
+import com.github.hippoom.runner.challenges.domain.activity.UserActivity;
+import com.github.hippoom.runner.challenges.domain.challenge.Challenge;
+import com.github.hippoom.runner.challenges.domain.challenge.ChallengeCompletionSpecification;
+import com.github.hippoom.runner.challenges.domain.challenge.ChallengeRepository;
+import com.github.hippoom.runner.challenges.domain.challenge.CompletedChallenge;
+import com.github.hippoom.runner.challenges.domain.challenge.CompletedChallengeRepository;
+import com.github.hippoom.runner.challenges.domain.challenge.StartedChallenge;
+import com.github.hippoom.runner.challenges.domain.challenge.StartedChallengeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

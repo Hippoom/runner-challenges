@@ -20,7 +20,7 @@ Refer to @Make-it-work-then-make-it-good.mdc
 
 - **Abstractions**:
     - **Clear Naming**: Use descriptive names like `IsAvailableToStart`, `CanBeCompleted`, `MeetsRequirements`
-    - **Location**: Place specifications in `{root}.domain.specification` package
+    - **Location**: Place specifications in the same package of relevant domain models
     - **Single Responsibility**: Each specification should encapsulate one business rule or constraint
     - **Dual Interface**:
         - Support predicate (boolean) where we don't care the cause (usually in queries)
@@ -36,8 +36,8 @@ Refer to @Make-it-work-then-make-it-good.mdc
 ```java
 package com.example.domain.specification;
 
-import com.example.domain.model.Order;
-import com.example.domain.model.User;
+import com.example.domain.Order;
+import com.example.domain.User;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -55,8 +55,8 @@ public class OrderIsAvailableToCancel {
 ```java
 package com.example.domain.specification;
 
-import com.example.domain.model.Order;
-import com.example.domain.model.User;
+import com.example.domain.Order;
+import com.example.domain.User;
 import com.example.domain.exception.OrderCannotBeCancelledException;
 import org.springframework.stereotype.Component;
 
@@ -91,8 +91,8 @@ public class OrderIsAvailableToCancel {
 ```java
 package com.example.domain.specification;
 
-import com.example.domain.model.Order;
-import com.example.domain.model.User;
+import com.example.domain.Order;
+import com.example.domain.User;
 
 public interface OrderAvailabilitySpecification {
     boolean test(Order order, User user);
@@ -126,8 +126,8 @@ public class OrderCancellationSpecification implements OrderAvailabilitySpecific
 ```java
 package com.example.domain.specification;
 
-import com.example.domain.model.Order;
-import com.example.domain.model.User;
+import com.example.domain.Order;
+import com.example.domain.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
@@ -158,8 +158,8 @@ public class OrderAvailabilityComposite implements OrderAvailabilitySpecificatio
 ```java
 package com.example.domain.specification;
 
-import com.example.domain.model.Challenge;
-import com.example.domain.model.UserActivity;
+import com.example.domain.Challenge;
+import com.example.domain.UserActivity;
 
 public interface CompletionCriterion {
     /**

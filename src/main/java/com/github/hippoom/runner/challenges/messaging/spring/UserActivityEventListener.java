@@ -1,7 +1,7 @@
 package com.github.hippoom.runner.challenges.messaging.spring;
 
 import com.github.hippoom.runner.challenges.application.CompleteChallengeCommandHandler;
-import com.github.hippoom.runner.challenges.domain.model.activity.UserActivity;
+import com.github.hippoom.runner.challenges.domain.activity.UserActivity;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;

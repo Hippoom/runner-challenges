@@ -1,4 +1,4 @@
-package com.github.hippoom.runner.challenges.domain.model.activity;
+package com.github.hippoom.runner.challenges.domain.activity;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;

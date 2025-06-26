@@ -1,6 +1,6 @@
-package com.github.hippoom.runner.challenges.domain.model.challenge;
+package com.github.hippoom.runner.challenges.domain.challenge;
 
-import com.github.hippoom.runner.challenges.domain.model.user.UserId;
+import com.github.hippoom.runner.challenges.domain.user.UserId;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

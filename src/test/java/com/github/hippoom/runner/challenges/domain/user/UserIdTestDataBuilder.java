@@ -1,4 +1,4 @@
-package com.github.hippoom.runner.challenges.domain.model.user;
+package com.github.hippoom.runner.challenges.domain.user;
 
 public final class UserIdTestDataBuilder {
     private UserId target;

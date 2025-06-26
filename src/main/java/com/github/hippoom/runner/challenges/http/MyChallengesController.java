@@ -2,11 +2,11 @@ package com.github.hippoom.runner.challenges.http;
 
 import com.github.hippoom.runner.challenges.application.StartChallengeCommandHandler;
 import com.github.hippoom.runner.challenges.command.StartChallengeCommand;
-import com.github.hippoom.runner.challenges.domain.model.challenge.Challenge;
-import com.github.hippoom.runner.challenges.domain.model.challenge.ChallengeNumber;
-import com.github.hippoom.runner.challenges.domain.model.challenge.ChallengeRepository;
-import com.github.hippoom.runner.challenges.domain.model.challenge.StartedChallenge;
-import com.github.hippoom.runner.challenges.domain.model.user.UserId;
+import com.github.hippoom.runner.challenges.domain.challenge.Challenge;
+import com.github.hippoom.runner.challenges.domain.challenge.ChallengeNumber;
+import com.github.hippoom.runner.challenges.domain.challenge.ChallengeRepository;
+import com.github.hippoom.runner.challenges.domain.challenge.StartedChallenge;
+import com.github.hippoom.runner.challenges.domain.user.UserId;
 import com.github.hippoom.runner.challenges.http.assembler.MyChallengeRepresentationAssembler;
 import com.github.hippoom.runner.challenges.http.representation.MyChallengeRepresentation;
 import com.github.hippoom.runner.challenges.http.support.CurrentUser;

@@ -68,7 +68,7 @@ Refer to @Make-it-work-then-make-it-good.mdc
 ### Basic Entity Structure
 
 ```java
-package com.example.domain.model.order;
+package com.example.domain.order;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -101,7 +101,7 @@ public class Order {
 ### Basic Value Objects
 
 ```java
-package com.example.domain.model.order;
+package com.example.domain.order;
 
 import lombok.Value;
 

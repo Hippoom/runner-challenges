@@ -1,4 +1,4 @@
-package com.github.hippoom.runner.challenges.domain.model.challenge;
+package com.github.hippoom.runner.challenges.domain.challenge;
 
 public final class NoSuchChallengeException extends RuntimeException {
     

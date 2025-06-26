@@ -1,7 +1,7 @@
 package com.github.hippoom.runner.challenges.http.support;
 
-import com.github.hippoom.runner.challenges.domain.model.challenge.ChallengeUnavailableException;
-import com.github.hippoom.runner.challenges.domain.model.challenge.NoSuchChallengeException;
+import com.github.hippoom.runner.challenges.domain.challenge.ChallengeUnavailableException;
+import com.github.hippoom.runner.challenges.domain.challenge.NoSuchChallengeException;
 import com.github.hippoom.runner.challenges.http.representation.ErrorResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;

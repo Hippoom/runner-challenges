@@ -50,7 +50,7 @@ that support complex object graphs.
 ### Simple Entity Builder
 
 ```java
-package com.example.domain.model.order;
+package com.example.domain.order;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -155,7 +155,7 @@ public class OrderAmountTestDataBuilder {
 ### Provides Primitive Parameters to Simplify Customization
 
 ```java
-package com.example.domain.model.order;
+package com.example.domain.order;
 
 import java.time.Instant;
 import java.util.UUID;

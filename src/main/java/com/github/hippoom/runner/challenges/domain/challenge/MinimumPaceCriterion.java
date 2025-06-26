@@ -1,6 +1,6 @@
-package com.github.hippoom.runner.challenges.domain.model.challenge;
+package com.github.hippoom.runner.challenges.domain.challenge;
 
-import com.github.hippoom.runner.challenges.domain.model.activity.UserActivity;
+import com.github.hippoom.runner.challenges.domain.activity.UserActivity;
 import lombok.Value;
 
 @Value
